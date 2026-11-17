@@ -1,0 +1,341 @@
+[
+ {
+  "img": "01-sunset-sim-process",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 6,
+  "note": "gradients on black",
+  "src": "research",
+  "fades": [
+   [
+    440,
+    110,
+    460,
+    380
+   ],
+   [
+    300,
+    140,
+    320,
+    500
+   ]
+  ]
+ },
+ {
+  "img": "02-spot-logo-transparent",
+  "mode": "spot",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 4,
+  "note": "four flat colors",
+  "src": "research"
+ },
+ {
+  "img": "03-portrait-skin-tones",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 6,
+  "note": "skin and browns, noisy",
+  "src": "research"
+ },
+ {
+  "img": "04-hue-wheel-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 7,
+  "note": "every hue; checks palette coverage and that white stays out of saturated colors"
+ },
+ {
+  "img": "05-neutral-ramps-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 5,
+  "note": "gray and warm-gray ramps fading into the shirt",
+  "fades": [
+   [
+    44,
+    84,
+    556,
+    256
+   ],
+   [
+    44,
+    344,
+    556,
+    516
+   ]
+  ]
+ },
+ {
+  "img": "06-fine-detail-spot-white",
+  "mode": "spot",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 4,
+  "note": "thin lines, small type and dots on a white shirt"
+ },
+ {
+  "img": "07-pastels-navy",
+  "mode": "sim",
+  "garment": [
+   28,
+   42,
+   74
+  ],
+  "k": 6,
+  "note": "pastels on a navy shirt"
+ },
+ {
+  "img": "08-earth-tones-sand",
+  "mode": "sim",
+  "garment": [
+   201,
+   180,
+   143
+  ],
+  "k": 5,
+  "note": "browns, olives and tans on a sand shirt"
+ },
+ {
+  "img": "09-neon-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 5,
+  "note": "high-chroma neon glows on black"
+ },
+ {
+  "img": "10-vintage-3color-heather",
+  "mode": "spot",
+  "garment": [
+   118,
+   118,
+   118
+  ],
+  "k": 3,
+  "note": "three spot colors on a charcoal heather shirt"
+ },
+ {
+  "img": "11-skin-grain-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 6,
+  "note": "skin gradient with photographic grain"
+ },
+ {
+  "img": "12-knockout-red",
+  "mode": "spot",
+  "garment": [
+   180,
+   20,
+   35
+  ],
+  "k": 2,
+  "note": "art that leaves the red shirt showing as a color"
+ },
+ {
+  "img": "13-sky-gradient-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 5,
+  "note": "long smooth gradient; checks banding",
+  "fades": [
+   [
+    200,
+    62,
+    400,
+    538
+   ]
+  ]
+ },
+ {
+  "img": "14-index-blend-black",
+  "mode": "index",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 6,
+  "note": "blended wedges for index separation"
+ },
+ {
+  "img": "15-photo-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 6,
+  "note": "full-color image on a white shirt, no underbase"
+ },
+ {
+  "img": "16-ink-ramps-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 6,
+  "note": "one ink at a time fading into the black shirt",
+  "fades": [
+   [
+    44,
+    30,
+    556,
+    103
+   ],
+   [
+    44,
+    123,
+    556,
+    196
+   ],
+   [
+    44,
+    216,
+    556,
+    289
+   ],
+   [
+    44,
+    309,
+    556,
+    382
+   ],
+   [
+    44,
+    402,
+    556,
+    475
+   ],
+   [
+    44,
+    495,
+    556,
+    568
+   ]
+  ]
+ },
+ {
+  "img": "17-ink-to-ink-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 6,
+  "note": "one ink fading into another on black",
+  "fades": [
+   [
+    44,
+    30,
+    556,
+    122
+   ],
+   [
+    44,
+    142,
+    556,
+    234
+   ],
+   [
+    44,
+    254,
+    556,
+    346
+   ],
+   [
+    44,
+    366,
+    556,
+    458
+   ],
+   [
+    44,
+    478,
+    556,
+    570
+   ]
+  ]
+ },
+ {
+  "img": "18-fade-to-shirt-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 5,
+  "note": "inks fading into a white shirt",
+  "fades": [
+   [
+    44,
+    30,
+    556,
+    122
+   ],
+   [
+    44,
+    142,
+    556,
+    234
+   ],
+   [
+    44,
+    254,
+    556,
+    346
+   ],
+   [
+    44,
+    366,
+    556,
+    458
+   ],
+   [
+    44,
+    478,
+    556,
+    570
+   ]
+  ]
+ }
+]

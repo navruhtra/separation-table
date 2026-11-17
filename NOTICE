@@ -1,0 +1,229 @@
+Separation Table
+Copyright (c) 2026 American Dream Network
+Licensed under the MIT License (see LICENSE).
+
+This NOTICE lists every third-party library, model and data set the tool
+downloads, bundles or serves, and every published method it implements.
+Libraries and models are not committed to the source tree:
+`node scripts/fetch-vendor.mjs` downloads them, at the pinned versions
+below, into src/vendor/ and src/models/, except sr_x2.onnx, which
+scripts/export-sr-model.py builds from the original weights. Each
+upstream license applies to its own files.
+
+Licenses were read on 2026-11-13 from each package's package.json and
+LICENSE file as installed by scripts/fetch-vendor.mjs, and from each
+model's Hugging Face model card or GitHub repository.
+
+
+1. Libraries (src/vendor/)
+--------------------------
+
+color.js 0.7.1 (src/vendor/color-fn.js)
+  License: MIT
+  Source:  https://github.com/color-js/color.js
+  Used for: reference Delta E CMC and CIEDE2000 (color targets, tests)
+
+lcms-wasm 1.0.5 (src/vendor/lcms.js, src/vendor/lcms.wasm)
+  License: MIT (package: Copyright (c) 2024 Matt DesLauriers). It is a
+           WebAssembly build of Little CMS, which is MIT licensed.
+  Source:  https://github.com/mattdesl/lcms-wasm
+           https://github.com/mm2/Little-CMS
+  Used for: converting embedded ICC profiles to sRGB
+
+pdf-lib 1.17.1 (src/vendor/pdf-lib.min.js)
+  License: MIT
+  Source:  https://github.com/Hopding/pdf-lib
+  Used for: film PDF, job sheet and mix sheet
+
+JSZip 3.10.1 (src/vendor/jszip.min.js)
+  License: MIT OR GPL-3.0-or-later (dual); used here under MIT
+  Source:  https://github.com/Stuk/jszip
+  Used for: the ZIP download
+
+ONNX Runtime Web 1.30.0 (src/vendor/ort.wasm.min.mjs,
+  src/vendor/ort-wasm-simd-threaded.mjs,
+  src/vendor/ort-wasm-simd-threaded.wasm)
+  License: MIT
+  Source:  https://github.com/microsoft/onnxruntime
+  Note:    the npm package ships no LICENSE or third-party notice file;
+           upstream keeps ThirdPartyNotices.txt in the repository root.
+           That file has not yet been checked for components
+           compiled into the WebAssembly build.
+  Used for: running the models below on the CPU
+
+OpenCV.js 4.10.0, package @techstark/opencv-js 4.10.0-release.1
+  (src/vendor/opencv.js)
+  License: Apache-2.0
+  Source:  https://github.com/TechStark/opencv-js
+           https://github.com/opencv/opencv
+  Used for: bilateral noise reduction, spot plate cleanup
+
+vtracer-wasm 0.1.0 (src/vendor/vtracer.js, src/vendor/vtracer.wasm)
+  License: MIT (LICENSE file, Copyright (c) 2025 jsscheller; the
+           package.json has no license field). It is a WebAssembly build
+           of VTracer (visioncortex), which is MIT licensed.
+  Source:  https://github.com/jsscheller/vtracer-wasm
+           https://github.com/visioncortex/vtracer
+  Used for: vector SVG of spot plates
+
+quickhull3d 3.1.2 (src/vendor/quickhull.js, bundled with esbuild)
+  License: MIT
+  Source:  https://github.com/mauriciopoppe/quickhull3d
+  Used for: 3D convex hull of the art's colors
+  The bundle also contains these dependencies of quickhull3d:
+    get-plane-normal 1.0.0         MIT   https://github.com/mattdesl/get-plane-normal
+    point-line-distance 1.0.1      MIT   https://github.com/mauriciopoppe/point-line-distance
+    robust-orientation 1.2.1       MIT   https://github.com/mikolalysenko/robust-orientation
+    robust-scale 1.0.2             MIT   https://github.com/mikolalysenko/robust-scale
+    robust-subtract 1.0.0          MIT   https://github.com/mikolalysenko/robust-subtract
+    robust-sum 1.0.0               MIT   https://github.com/mikolalysenko/robust-sum
+    two-product 1.0.2              MIT   https://github.com/mikolalysenko/two-product
+    two-sum 1.0.0                  MIT   https://github.com/mikolalysenko/two-sum
+    monotone-convex-hull-2d 1.0.1  MIT   https://github.com/mikolalysenko/monotone-convex-hull-2d
+    debug 4.4.3                    MIT   https://github.com/debug-js/debug
+    ms 2.1.3                       MIT   https://github.com/vercel/ms
+    gl-vec3 1.2.0                  Zlib  https://github.com/stackgl/gl-vec3
+    gl-vec4 1.0.1                  Zlib  https://github.com/stackgl/gl-vec4
+    gl-mat4 1.2.0                  Zlib  https://github.com/stackgl/gl-mat4
+    gl-quat 1.0.0                  Zlib  https://github.com/stackgl/gl-quat
+
+Build and test tools (not served to users): esbuild 0.24.0 (MIT,
+https://github.com/evanw/esbuild), TypeScript 5.6.3 (Apache-2.0,
+https://github.com/microsoft/TypeScript), Playwright 1.49.1 (Apache-2.0,
+https://github.com/microsoft/playwright), Pillow (MIT-CMU,
+https://github.com/python-pillow/Pillow).
+
+
+2. AI models (src/models/)
+--------------------------
+
+u2netp.onnx: U^2-Net small (U2-Netp), background removal
+  License: Apache-2.0 (the U-2-Net repository). The file is downloaded
+           from the rembg release assets; rembg itself is MIT.
+  Source:  https://github.com/xuebinqin/U-2-Net
+           https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx
+
+sr_x2.onnx: Swin2SR lightweight x2 (patch 64), 2x upscale. ONNX export
+  made by ADN with scripts/export-sr-model.py from the original weights; no
+  third-party ONNX file is used.
+  Weights: Marcos V. Conde, Ui-Jin Choi, Maxime Burchi, Radu Timofte,
+           "Swin2SR: SwinV2 Transformer for Compressed Image
+           Super-Resolution and Restoration", AIM workshop, ECCV 2022,
+           arXiv:2209.11345. Released in mv-lab/swin2sr; converted to
+           Hugging Face format as caidas/swin2SR-lightweight-x2-64,
+           revision 07e8e61492ce6daf4f34c651622960faf110c17f,
+           model.safetensors SHA-256
+           1b7a135af7de4287289c59939bf735de5afa9927a943bd946920acdcf4dd6365
+  License: Apache-2.0. The mv-lab/swin2sr LICENSE file is the Apache
+           License 2.0, and its README says "This project is released
+           under the Apache 2.0 license". The caidas model card declares
+           "license: apache-2.0". Changes: exported to ONNX (opset 17)
+           with the input named pixel_values and the output
+           reconstruction; weights unchanged.
+  Source:  https://github.com/mv-lab/swin2sr
+           https://github.com/mv-lab/swin2sr/blob/main/LICENSE
+           https://huggingface.co/caidas/swin2SR-lightweight-x2-64
+           https://www.apache.org/licenses/LICENSE-2.0
+
+sam_encoder.onnx, sam_decoder.onnx: SlimSAM-77 uniform, quantized ONNX
+  export by Xenova, click-to-select regions
+  License: Apache-2.0 (model card of the export and of the base model
+           nielsr/slimsam-77-uniform; the SlimSAM repository is
+           Apache-2.0)
+  Source:  https://huggingface.co/Xenova/slimsam-77-uniform
+           https://github.com/czg1225/SlimSAM
+
+
+3. Data
+-------
+
+Ink presets (src/inks.js)
+  - Generic stock shades, the sim-process kit and the skin add-ons:
+    ADN's own approximate sRGB values. No third-party data.
+  - Wilflex Epic Rio: product names and codes as Avient lists them
+    (facts); the colors are ADN's own visual estimates, because Wilflex
+    publishes no color values.
+  - FN-INK: product names only (facts, used to name the products).
+    The colors are ADN's own estimates: each product is ADN's generic
+    shade of the same color name, or an equal mix of two of them in the
+    print model's mixing space (src/inks.js, estimateFromGeneric). No
+    FN-INK published color values are used. They are replaced by
+    press-run readings when a shop imports its measured drawdowns.
+  Product names are trademarks of their owners. ADN is not affiliated
+  with Avient, Wilflex or FN-INK. The tool ships no PANTONE data.
+
+ICC profiles
+  None bundled. icc.js reads the profile embedded in the user's own
+  image and converts to the sRGB profile Little CMS builds in memory
+  (cmsCreate_sRGBProfile).
+
+Test images
+  test-images/04 to 18 are made by scripts/make-test-images.py (ADN,
+  no third-party content). test-images/01 to 03 are ADN synthetic test
+  images (flat shapes, gradients and lettering; no third-party
+  content); no script in this tree draws them. benchmark/truth/*.png
+  are made by benchmark/truth/make.py. All are covered by the MIT
+  License.
+
+src/assets/brand/
+  The Separation Table marks, made by ADN. The PNGs and favicon.ico
+  are rendered from the SVGs by scripts/render-icons.mjs;
+  social-1200x630.png is a layout made by ADN.
+
+src/assets/adn-mark-still.svg
+  The ADN logo. It is a trademark of American Dream Network, LLC and is
+  not covered by the MIT License grant.
+
+Fonts: none bundled.
+
+
+4. Published methods implemented here
+-------------------------------------
+
+These are implemented in ADN's own code from the cited publications. The
+code comments cite them; no third-party source code is ported.
+
+  CIEDE2000 color difference: Sharma, Wu and Dalal, "The CIEDE2000
+    color-difference formula", Color Research and Application, 2005
+    (src/engine.js)
+  Delta E CMC(l:c): CMC of the Society of Dyers and Colourists
+    (checked against color.js)
+  Yule-Nielsen modified spectral Neugebauer / mixing in linear
+    reflectance (src/engine.js, src/calib.js)
+  Demichel equations for rotated-screen overprint (README "How it
+    separates")
+  Palette from the convex hull of the art's colors, after Tan,
+    Echevarria and Gingold, "Efficient palette-based decomposition and
+    recoloring of images via RGBXY-space geometry", 2018 (src/engine.js)
+  FISTA (fast iterative shrinkage-thresholding) least squares
+    (src/engine.js)
+  Euclidean projection onto the simplex, sort-based, Duchi et al. 2008
+    (src/engine.js)
+  OKLab, Bjorn Ottosson, 2020 (src/engine.js)
+  Floyd-Steinberg error diffusion, vector form in mix space (index mode)
+  Ordered 8x8 Bayer threshold (src/engine.js)
+  Standard halftone screen angles per print method: The Print Guide,
+    "Halftone screen angles", 2009 (src/plan.js)
+
+Published values (src/plan.js FABRICS and builtinProfiles, cited in
+src/help.js).
+Values are restated in our words; no text is copied beyond short facts.
+  Garment fabrics: Avient, Wilflex Epic Polywhite LC technical data
+    sheet V3.04 (2023); Wilflex Ink Curing Tips (2020); Wilflex Product
+    Selection Guide (2024); Rutland Ink Guide (Avient); International
+    Coatings 741 Ultra LB White technical data sheet (2011); Impressions
+    magazine, "Fewer Problems with Poly" (Laster, 2020) and "Screen
+    Printing on Fleece" (Ortolani, 2014); ScreenPrinting.com, "The 4
+    most common types of t-shirts" (Wedman, 2023); The Shirt Board,
+    fleece choke (Colin, 2014). No source gives dot gain by fabric.
+  Built-in press profiles: UltraSeps film output settings (Roginski,
+    2015); The Shirt Board (blue moon, 2013 and 2018); ScreenPrinting.com
+    help, halftone mesh; T-Biz Network (Fresener, 2018); Impressions
+    magazine (Ortolani, 2014). Values without a source are labelled as
+    Separation Table defaults (estimates). None is press-tested.
+
+Patents: Represent Holdings US 10,079,962 and US 10,419,643 cover
+palette and lookup steps in this field. No freedom-to-operate review
+was done. American Dream Network publishes this source and accepts that
+risk. The MIT License grants no
+patent rights from third parties.

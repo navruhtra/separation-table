@@ -1,0 +1,969 @@
+/* Layout. Control column left, proof right; one column on phones. Spacing in 3s, no radius, 1px #999 rules. */
+:root{
+  --navy:#001089; --sky:#94a3d6; --blue:#b8dae8; --manila:#f8eac7; --red:#a60315; --green:#228B22; --gold:#b8860b;
+  --page:#ffffff; --surface:#ffffff; --stripe:#f8f8f8; --fg:#001089; --muted:#767676; --line:#999999; --hover:#f8eac7;
+  --pri-bg:#001089; --pri-fg:#ffffff; --sel-bg:#b8dae8; --sel-fg:#001089;
+  --font:"Helvetica Neue",Helvetica,Arial,sans-serif; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme: light;
+}
+*{box-sizing:border-box;border-radius:0}
+[hidden]{display:none!important}
+/* v1 surface: a group marked data-later is in the code and tested, but not shown. ?later=1 shows it (app.js sets .later on the root). */
+:root:not(.later) [data-later]{display:none!important}
+:root:not(.later) #view.seg button[data-v=film]{border-right:0} /* Print is the last tab shown */
+body{background:var(--page);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px}
+h1,h2{margin:0;text-wrap:balance}
+h1{font-size:24px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+h2{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.lab{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.small{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+code{font-family:var(--mono);font-size:12px}
+.wrap{max-width:1440px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:12px}
+header p{margin:0;color:var(--muted);max-width:72ch}
+.grid{display:grid;grid-template-columns:minmax(0,384px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:960px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col,.stage{display:grid;gap:18px;min-width:0}
+.box{border:1px solid var(--line);background:var(--surface);padding:12px;display:grid;gap:12px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:6px 9px;align-items:center}
+.between{justify-content:space-between}
+.field{display:grid;gap:3px;min-width:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(129px,1fr));gap:12px}
+label.lab{display:block}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px}
+input,select,button{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:0}
+input[type=number],input[type=text],select{padding:3px 6px;width:100%;min-width:0}
+input[type=range]{width:100%;accent-color:var(--sky);border:0;padding:0}
+input[type=color]{width:36px;height:27px;padding:0;cursor:pointer}
+button{padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+button:hover{background:var(--hover)}
+button.pri{background:var(--pri-bg);color:var(--pri-fg);border-color:var(--pri-bg)}
+button[aria-pressed=true]{background:var(--sel-bg);color:var(--sel-fg)}
+button:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
+.seg{display:flex;flex-wrap:wrap}
+.seg button{border-right-width:0}
+.seg button:last-child{border-right-width:1px}
+.ink{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:6px 9px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.ink .nm{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;overflow-wrap:anywhere}
+.ink .sub{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ink .acts{display:flex;gap:3px}
+.ink .acts button{padding:3px 6px}
+.swatch{display:block;width:36px;height:27px;border:1px solid var(--line)}
+.canvasbox{border:1px solid var(--line);background:var(--stripe);transition:background-color .2s;display:grid;place-items:center;min-height:300px;overflow:hidden}
+.canvasbox canvas{max-width:100%;height:auto;display:block}
+.canvasbox canvas.picking{cursor:crosshair}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);background:var(--surface)}
+.stats div{padding:9px 12px;border-right:1px solid var(--line);display:grid;gap:3px}
+.stats div:last-child{border-right:0}
+.stats b{font-size:21px;font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:560px){.stats{grid-template-columns:1fr 1fr}.stats div:nth-child(2){border-right:0}.stats div:nth-child(-n+2){border-bottom:1px solid var(--line)}.three{grid-template-columns:1fr 1fr}}
+.pill{display:inline-block;padding:0 6px;border:1px solid currentColor;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ok{color:var(--green)} .warn{color:var(--gold)} .bad{color:var(--red)}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;white-space:nowrap}
+th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+#targets input{width:66px}#targets input.lbl{width:150px}#targets select{width:auto}
+.chip{display:inline-block;width:15px;height:15px;border:1px solid var(--line);vertical-align:-3px;margin-right:6px}
+.note{font-size:13px;color:var(--muted);margin:0;max-width:72ch}
+.drop{border:1px dashed var(--line);padding:12px;text-align:center;font-size:13px;color:var(--muted);cursor:pointer}
+.drop.on{background:var(--hover)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Simple flow */
+.step h2{display:flex;align-items:center;gap:9px}
+.num{display:inline-grid;place-items:center;width:24px;height:24px;border:1px solid var(--line);font-size:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;padding:6px 9px}
+.chips button i{display:inline-block;width:15px;height:15px;border:1px solid var(--line)}
+.chip-other{display:inline-flex;align-items:center;gap:6px;font-size:13px;border:1px solid var(--line);padding:3px 9px}
+.chip-other input{width:24px;height:21px}
+.stepper{display:flex}
+.stepper input{text-align:center;border-left:0;border-right:0}
+.stepper button{padding:3px 12px;font-size:15px}
+button.big{padding:12px 18px;font-size:13px}
+details.more>summary{cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-block:3px}
+details.more[open]>summary{margin-bottom:12px}
+details.box.more>section{display:grid;gap:12px;padding-block:12px;border-top:1px solid var(--line)}
+.verdict{border:1px solid var(--line);background:var(--surface);padding:12px;display:grid;gap:3px;border-left-width:6px}
+.verdict b{font-size:21px}
+.verdict.ok{border-left-color:var(--green)} .verdict.warn{border-left-color:var(--gold)} .verdict.bad{border-left-color:var(--red)}
+
+/* Help: a "?" next to each control opens a plain-language note in place; the Help panel holds them all, searchable */
+/* Help buttons: one size, always right after a label's text or at the right edge of a section title; never beside an action button */
+.q{display:inline-grid;place-items:center;width:18px;height:18px;padding:0;margin-left:6px;font-size:11px;font-weight:700;letter-spacing:0;line-height:1;vertical-align:1px;color:var(--muted);border-color:var(--line);background:transparent;flex:none}
+.q:hover,.q[aria-expanded=true]{color:var(--fg);border-color:var(--fg)}
+.step>h2 .q{margin-left:auto}
+.chk .lab{display:inline-flex;align-items:center}
+.helpbtn{margin-left:auto}
+header{align-items:center}
+dialog#helpPanel{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:18px;width:min(720px,calc(100vw - 32px));max-height:min(84vh,900px);overflow:auto}
+dialog#helpPanel::backdrop{background:rgba(0,16,137,.25)}
+dialog#helpPanel[open]{display:grid;gap:12px;align-content:start}
+#helpQ{padding:9px;font-size:15px;width:100%}
+.hgroup{display:grid;gap:0}
+.hgroup h3{margin:9px 0 3px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.hitem{border-top:1px solid var(--line)}
+.hitem:last-child{border-bottom:1px solid var(--line)}
+.hitem>summary{cursor:pointer;padding:6px 0;font-weight:700;font-size:14px}
+.hitem>p,.hitem>.x{margin:0 0 9px;font-size:14px}
+.hitem p{margin:0 0 6px}
+
+/* Advanced: a full-width bar that reads as a button, not a footnote */
+details.adv{padding:0}
+details.adv>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;column-gap:9px;align-items:center;padding:12px;background:var(--stripe)}
+details.adv>summary::-webkit-details-marker{display:none}
+details.adv>summary::before{content:"+";grid-row:1/3;display:grid;place-items:center;width:27px;height:27px;border:1px solid var(--fg);font-size:18px;font-weight:700}
+details.adv[open]>summary::before{content:"−"}
+details.adv>summary:hover{background:var(--hover)}
+details.adv>summary .advt{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg)}
+details.adv>summary .advs{grid-column:2;font-size:13px;color:var(--muted)}
+details.adv>summary .q{grid-column:3;grid-row:1/3}
+details.adv>section{display:grid;gap:12px;padding:12px;border-top:1px solid var(--line)}
+details.adv[open]>summary{border-bottom:1px solid var(--line)}
+/* Small disclosures (Fix the art, Numbers) show a +/− mark so they read as clickable */
+details.more>summary{list-style:none;color:var(--fg)}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"+ ";font-weight:700}
+details.more[open]>summary::before{content:"− "}
+/* Preflight: what to fix before burning screens */
+.checks{border:1px solid var(--line);border-left-width:6px;padding:9px 12px;font-size:13px;color:var(--fg)}
+.checks.ok{border-left-color:var(--green)} .checks.warn{border-left-color:var(--gold)}
+.checks ul{margin:3px 0 0;padding-left:18px}
+/* Phones: show the result right after shirt and screens, before films, so changes are visible without scrolling past every control */
+
+/* Tooltip: one floating note, opened by a "?" button, placed below (or above) it and kept inside the viewport */
+.tippop{position:fixed;z-index:50;border:1px solid var(--fg);background:var(--surface);color:var(--fg);padding:9px 12px;font-size:13px;line-height:1.45;font-weight:400;letter-spacing:0;text-transform:none;box-shadow:0 3px 12px rgba(0,16,137,.18)}
+.tippop .tt{display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+.tippop p{margin:0}.tippop p+p{margin-top:3px}
+.tippop::before{content:"";position:absolute;left:calc(var(--ax,50%) - 6px);width:10px;height:10px;background:var(--surface);border:1px solid var(--fg);transform:rotate(45deg)}
+.tippop[data-side=below]::before{top:-6px;border-right:0;border-bottom:0}
+.tippop[data-side=above]::before{bottom:-6px;border-left:0;border-top:0}
+.hw{display:inline-flex;align-items:center}
+
+/* Upload: a large icon target */
+.drop{display:grid;justify-items:center;gap:3px;padding:18px 12px;color:var(--fg)}
+.drop .upicon{width:60px;height:60px;color:var(--fg);margin-bottom:6px}
+.drop b{font-size:15px}
+.drop span{font-size:13px;color:var(--muted)}
+.drop:hover{background:var(--hover)}
+
+/* Art type: three picture buttons that show what each kind of art looks like */
+.arttypes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.arttypes button{display:grid;justify-items:center;gap:6px;padding:6px;text-transform:none;letter-spacing:0;font-size:13px;font-weight:700;line-height:1.2}
+.arttypes svg{width:100%;max-width:96px;aspect-ratio:4/3;height:auto;border:1px solid var(--line);display:block}
+.arttypes button[aria-pressed=true]{outline:2px solid var(--fg);outline-offset:-2px}
+
+/* Garment: tiny t-shirt buttons */
+.tees{display:grid;grid-template-columns:repeat(auto-fill,minmax(57px,1fr));gap:6px}
+.tees button,.tees .chip-other{display:grid;justify-items:center;gap:3px;padding:6px 3px;font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;border:1px solid var(--line);cursor:pointer;position:relative}
+.tees svg{width:33px;height:33px;display:block}
+.tees svg path{stroke:var(--line);stroke-width:.8;stroke-linejoin:round}
+.tees button[aria-pressed=true]{outline:2px solid var(--fg);outline-offset:-2px}
+.tees .chip-other input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+
+/* Separations: one numbered swatch per screen, in print order */
+.chanpick{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.chanlist{display:flex;flex-wrap:wrap;gap:6px}
+.chanlist button{position:relative;width:39px;height:39px;padding:0;border:1px solid var(--line);display:grid;place-items:center}
+.chanlist i{position:absolute;inset:3px;display:block;border:1px solid var(--line)}
+.chanlist span{position:relative;font-size:12px;font-weight:700;letter-spacing:0;color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.chanlist button[aria-checked=true]{outline:2px solid var(--fg);outline-offset:1px}
+#order th,#order td{padding:6px}
+#order th{white-space:normal;vertical-align:bottom}#order td:nth-child(2){white-space:normal}
+.chanlist button.lt span{color:#001089;text-shadow:none}
+/* Inspect: zoom buttons under the image; drag to move */
+.canvasbox{position:relative}
+#view0{touch-action:none}
+#view0.zoomed{cursor:grab;max-width:none}
+#zoomBox,#chanBox{margin-top:-9px}
+/* Result box: labeled lines, easy to scan */
+.vrows{display:grid;grid-template-columns:max-content 1fr;gap:3px 12px;margin:6px 0 0}
+.vrows dt{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.vrows dd{margin:0;color:var(--fg);font-size:14px}
+/* Artwork card inside the drop box: what you are working on, always in view */
+.filecard{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left}
+.filecard canvas{width:72px;height:72px;border:1px solid var(--line);display:block}
+.filecard .fc{display:grid;gap:1px;min-width:0}
+.filecard .fc b{font-size:14px;overflow-wrap:anywhere}
+.filecard .fc span{font-size:12px;color:var(--muted)}
+.filecard .fcact{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);padding:3px 9px;color:var(--fg)}
+.drop:has(.filecard:not([hidden])){padding:9px;border-style:solid}
+.dropempty{display:grid;justify-items:center;gap:3px}
+/* Status lines keep one fixed line, so the layout never moves while you click */
+.statusline{min-height:1.5em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-6px}
+/* View tabs: one row on desktop; a neat 3 × 2 grid on phones, with the ? beside it, not under it */
+.stage>.row.between{flex-wrap:nowrap;align-items:flex-start}
+@media (max-width:560px){#view{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1}#view button{border-right-width:1px;margin:0 -1px -1px 0;padding:6px 3px;font-size:11px}}
+/* Inspect zoom: Fit on the left, a slider, the percent on the right */
+.zoomrow{display:flex;align-items:center;gap:12px;flex:1 1 360px;min-width:0}
+.zoomrow input[type=range]{flex:1;min-width:120px;accent-color:var(--fg);height:27px}
+.zoomrow input[type=range].idle{opacity:.5}
+.zoomrow output{min-width:51px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.zoomwrap{display:grid;gap:6px;flex:1 1 360px;min-width:0}
+.zoomrow .zlab{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.zoomsteps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+.zoomsteps button{padding:6px 3px;border-right-width:0}.zoomsteps button:last-child{border-right-width:1px}
+
+
+/* ───────── v3: steps | workspace | finer settings ───────── */
+body{padding:0}
+.v3{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr) minmax(0,360px);min-height:100vh;max-width:1680px;margin:0 auto}
+.v3.noside{grid-template-columns:minmax(0,340px) minmax(0,1fr)}
+.v3.noside > .pane.side{display:none}
+.pane{min-width:0;padding:15px;display:flex;flex-direction:column;gap:9px;box-sizing:border-box}
+.pane.steps{border-right:1px solid var(--line);position:sticky;top:0;height:100vh;overflow:auto}
+.v3 > .pane.side{border-left:1px solid var(--line);position:sticky;top:0;height:100vh;overflow:auto}
+.pane.work{background:var(--stripe);align-items:center;padding:15px 24px;gap:10px}
+.pane.work > *{width:min(100%,640px);box-sizing:border-box}
+.brand{padding-bottom:6px}.brand h1{font-size:18px}
+.panelab{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.panelhead{display:flex;justify-content:space-between;align-items:center;gap:9px}
+.linkbtn{border:0;background:transparent;padding:6px 0;font-size:11px;text-decoration:underline;justify-self:start;align-self:flex-start}
+.mhead{display:none}
+
+/* step rows: badge, title, summary, Edit or Open; the open step expands in place */
+.sstep{border:1px solid var(--line);background:var(--surface)}
+.sstep.open{border:2px solid var(--fg)}
+.sthead{display:flex;align-items:center}
+.stbtn{flex:1;display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:14px;align-items:center;text-align:left;border:0;background:transparent;padding:10px 12px;min-height:56px;text-transform:none;letter-spacing:0;font-weight:400}
+.stbtn:hover{background:var(--hover)}
+.badge{width:32px;height:32px;box-sizing:border-box;border:1.5px solid var(--line);color:var(--muted);display:grid;place-items:center;font-size:15px;font-weight:700}
+.sstep.open .badge{border-color:var(--fg);color:var(--fg)}
+.sstep.done .badge{border-color:var(--green);color:var(--green);font-size:16px}
+.stt{display:grid;gap:2px;min-width:0}
+.sttitle{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.stsum{font-size:14px;color:var(--fg);opacity:.85}
+.sstep.open .stsum{display:none}
+.stact{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:underline}
+.sthead .hw{padding-right:12px}
+.stbody{display:flex;flex-direction:column;gap:10px;padding:0 12px 12px}
+.stlead{margin:0;font-size:14px}
+button.next{width:100%;height:42px;border:1px solid var(--fg);font-size:12px}
+.stepfoot{margin-top:auto;display:flex;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.stepfoot button{flex:1;height:36px}
+body.framed #helpOpen{display:none}
+body.inheader .mhead,body.inheader .brand{display:none}
+#helpAbout a{color:var(--fg);font-weight:700}
+.stbody .filecard{grid-template-columns:60px minmax(0,1fr);gap:9px;border:1px solid var(--line);padding:9px}
+.stbody .filecard canvas{width:60px;height:60px}
+.stbody .filecard .fcact{display:none}
+
+/* workspace: a 1:1 square; empty, it is the drop area */
+.viewbar{display:flex;flex-wrap:wrap;align-items:center;gap:9px 15px}
+.viewbar .seg{margin-right:auto}
+.tog .lab{color:var(--fg)}
+.square{position:relative;aspect-ratio:1/1;border:1px solid var(--line);background:var(--surface);overflow:hidden}
+.square .canvasbox{position:absolute;inset:0;border:0;min-height:0}
+.square .canvasbox canvas{max-width:100%;max-height:100%}
+.square .canvasbox canvas.zoomed{max-width:none;max-height:none}
+.square .drop{position:absolute;inset:12%;border:2px dashed var(--line);background:transparent;display:grid;place-items:center;cursor:pointer;padding:24px}
+.square:has(#drop:not([hidden])) .canvasbox{visibility:hidden}
+.square .drop .dropempty{gap:9px}
+.square .drop .upicon{width:110px;height:110px}
+.square .drop b{font-size:22px}
+.square .drop span{font-size:14px}
+/* A small square (a phone, or a narrow middle column) cannot hold the 110 px icon and four lines of text. */
+.square{container:sq / inline-size}
+@container sq (max-width:420px){.square .drop{inset:6%;padding:12px}.square .drop .dropempty{gap:6px}.square .drop .upicon{width:64px;height:64px}.square .drop b{font-size:18px}.square .drop span{font-size:13px}}
+@container sq (max-width:300px){.square .drop{inset:4%;padding:9px}.square .drop .upicon{width:40px;height:40px}.square .drop b{font-size:15px}.square .drop .small{display:none}}
+#chanBox .chanpick{justify-content:flex-start}
+
+/* print rating: stars from the measured scores, the numbers behind them, what lowers it */
+.rating{display:grid;grid-template-columns:180px minmax(0,1fr);border:1px solid var(--line);background:var(--surface)}
+.rmain{padding:10px 14px;border-right:1px solid var(--line);display:grid;gap:3px;align-content:start}
+.rnum{display:flex;align-items:baseline;gap:6px}.rnum b{font-size:34px;line-height:1}.rnum span{font-size:12px;color:var(--muted)}
+.stars{position:relative;display:inline-block;font-size:20px;letter-spacing:2px;line-height:1;color:#d9d9d9;width:max-content}
+.stars i{font-style:normal}
+.stars i.on{position:absolute;left:0;top:0;width:0;overflow:hidden;white-space:nowrap;color:var(--gold)}
+.rdata{display:flex;flex-direction:column;min-width:0}
+.rfacts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line)}
+.rfacts:empty{display:none}
+.rfacts > span{padding:7px 10px;border-right:1px solid var(--line);display:grid;gap:1px}
+.rfacts > span:last-child{border-right:0}
+.rfacts .lab{font-size:9px}.rfacts b{font-size:15px}.rfacts small{font-size:10px;color:var(--muted)}
+.rwhy{margin:0;padding:8px 10px;font-size:12px;line-height:1.45}
+.rating .checks{border:0;margin:0 10px 9px;padding:0}
+
+/* finer settings */
+.sidesec{display:flex;flex-direction:column;gap:10px}
+.tips{border:1px solid var(--line);padding:10px 12px}.tips ul{margin:6px 0 0;padding-left:16px;font-size:13px;line-height:1.6}
+.selcard{border:1px solid var(--line);padding:10px 12px;display:grid;gap:8px}
+.selhead{display:flex;gap:10px;align-items:center}.selhead i{width:34px;height:34px;border:1px solid var(--line);flex:none}
+.selhead span{display:grid}.selhead b{font-size:14px}.selhead span span{font-size:11px;color:var(--muted)}
+.selfacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.selfacts > span{padding:4px 7px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:grid}
+.selfacts .lab{font-size:8px}.selfacts b{font-size:12px}
+#scrList{display:grid;border-top:1px solid var(--line)}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) auto 32px 32px;gap:6px;align-items:center;border-bottom:1px solid var(--line);padding:3px 0}
+.srow.cur{background:var(--sel-bg)}
+.srow.hid .spick,.srow.hid .scov{opacity:.5}
+.spick{display:flex;align-items:center;gap:9px;border:0;background:transparent;padding:5px 3px;text-align:left;text-transform:none;letter-spacing:0;font-weight:400;min-width:0}
+.spick i{flex:none;width:28px;height:28px;border:1px solid var(--line);display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:700;color:#fff;text-shadow:0 0 2px #000}
+.spick i.lt{color:#001089;text-shadow:none}
+.sn{display:grid;min-width:0}.sn b{font-size:13px}.sn span{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scov{display:grid;justify-items:end;font-variant-numeric:tabular-nums}.scov b{font-size:12px}.scov span{font-size:10px;color:var(--muted)}
+.ibtn{width:32px;height:32px;padding:0;display:grid;place-items:center}
+.ibtn svg{width:14px;height:14px}.ibtn.ghost{border:0}
+.ibtn[aria-pressed=true]{background:var(--sel-bg)}
+.side .tblwrap{overflow-x:auto}
+.sideopen{position:fixed;right:0;top:50%;transform:rotate(-90deg) translateX(50%);transform-origin:right bottom;z-index:20}
+dialog#shopPanel{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:18px;width:min(720px,calc(100vw - 32px));max-height:min(88vh,960px);overflow:auto}
+dialog#shopPanel[open]{display:grid;gap:12px;align-content:start}
+dialog#shopPanel::backdrop{background:rgba(0,16,137,.25)}
+dialog#shopPanel section{display:grid;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.mnav{display:none}
+
+/* phone: pinned square image, rating under it, steps below; finer settings inside the open step; Back and Next */
+@media (max-width:960px){
+  .mhead{display:flex;align-items:center;gap:6px;height:44px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--page)}
+  .mhead b{flex:1;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .mhead button{width:36px;height:36px;padding:0;display:grid;place-items:center}
+  .v3{display:flex;flex-direction:column;min-height:0}
+  .pane.work{order:1;padding:0;background:var(--page);gap:6px}
+  .pane.work > *{width:100%}
+  .pane.work > .viewbar,.pane.work > #zoomBox,.pane.work > #chanBox,.pane.work > .note,.pane.work > details{padding:0 12px}
+  .square{position:sticky;top:0;z-index:10;border-left:0;border-right:0}
+  .pane.steps{order:2;position:static;height:auto;overflow:visible;border:0;padding:9px 12px 90px}
+  .pane.steps .brand,.stepfoot,.kbd{display:none}
+  button.next{display:none}
+  .stbody > .pane.side{position:static;height:auto;overflow:visible;border:0;padding:0}
+  .stbody > .pane.side #sideClose{display:none}
+  .rating{grid-template-columns:110px minmax(0,1fr);border-left:0;border-right:0}
+  .rmain{padding:6px 10px}.rnum b{font-size:24px}.stars{font-size:14px;letter-spacing:1px}
+  .rfacts > span{padding:4px 6px}.rfacts b{font-size:13px}.rfacts small{display:none}
+  .rwhy{padding:6px 8px;font-size:11px}
+  .mnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;gap:8px;padding:8px 12px;background:var(--surface);border-top:1px solid var(--line)}
+  .mnav button{height:46px}.mnav #mNext{flex:1}
+  /* framed (ADN wall and tool page): the frame is as tall as the content, so a fixed bar adds nothing; iOS Safari
+     moves fixed bars inside frames while the page scrolls (bar over step 4, gap under it). The bar ends the flow. */
+  body.framed .mnav{position:static}
+  body.framed .pane.steps{padding-bottom:18px}
+  /* the frame never scrolls itself (iOS bounces frames); no overscroll-behavior: none here, which also stops a drag on
+     the table from scrolling the page (the page does all the scrolling) */
+  html:has(> body.framed){overflow:hidden}
+  body.framed{margin-bottom:0}
+  .viewbar #view{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1 1 100%;margin:0}
+}
+.sttitle{font-size:12px;letter-spacing:.1em}
+.stbtn{gap:12px}
+.stbody .two:has(> .field:only-child){grid-template-columns:1fr}
+@media (max-width:960px){.pane.work > .square{order:-3}.pane.work > .rating{order:-2}.pane.work > .viewbar{order:-1;padding-top:6px}}
+/* phone: the workspace's children join the page column, so the image (and the rating under it) stay pinned while the steps scroll */
+@media (max-width:960px){
+  .pane.work{display:contents}
+  .pane.work > *{width:100%;box-sizing:border-box}
+  .square{order:-3;position:sticky;top:0;z-index:10}
+  .pane.work > .rating{order:-2;position:sticky;top:100vw;z-index:9}
+  .pane.work > .viewbar{order:-1;padding:6px 12px 0}
+  .pane.work > #zoomBox,.pane.work > #chanBox,.pane.work > .note,.pane.work > details{order:0;padding:0 12px}
+  .pane.steps{order:1}
+}
+@media (max-width:960px){
+  .pane.work > .rating{grid-template-columns:104px minmax(0,1fr);background:var(--surface)}
+  .rating .rwhy{display:none}
+  .rmain{padding:4px 8px;gap:1px}.rmain .lab{font-size:8px}.rmain .q{display:none}
+  .rnum b{font-size:20px}.stars{font-size:12px}
+  .rfacts{border-bottom:0}.rfacts > span{padding:4px 5px}.rfacts .lab{font-size:7px;letter-spacing:.06em}.rfacts b{font-size:12px}
+}
+@media (max-width:960px){.pane.work > .rating{top:var(--sqh,100vw)}}
+.stsum{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* check cards: one per check, with the fix as a button */
+.checks{display:grid;gap:6px}
+.checks .ck{border:1px solid var(--red);background:var(--surface);padding:8px 10px;display:grid;gap:6px}
+.checks .ck > b{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+.checks .ck p{margin:0;font-size:13px;line-height:1.45}
+.checks .ck ul.gamut{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px;line-height:1.45}.checks .ck ul.gamut .chip{margin-right:6px}
+.checks .ck .row{display:flex;flex-wrap:wrap;gap:6px}.checks .ck .row button{height:33px;padding:0 12px;font-size:11px;letter-spacing:.08em}
+/* Severity: errors red, warnings gold, notes plain; the card head carries the word, so colour is never the only signal */
+.checks.bad{border-left-color:var(--red)} .checks.note{border-left-color:var(--line)}
+.checks .ck.warning{border-color:var(--gold)}.checks .ck.warning > b{color:var(--fg)}
+.checks .ck.note{border-color:var(--line)}.checks .ck.note > b{color:var(--fg)}
+.checks .ck p.cknum{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.checks .ck ul.gamut .ckshow{height:27px;padding:0 9px;font-size:11px;letter-spacing:.08em;margin-left:6px}
+.checks .ck .ckshow[aria-pressed=true]{background:var(--fg);color:var(--surface)}
+.rline,.mprog,.rlart{display:none}
+
+/* phone: image, view row and rating line pin on top; the image becomes a 222 px band past the top of the page */
+@media (max-width:960px){
+  .square{aspect-ratio:auto;height:var(--sqv,100vw);margin-bottom:calc(var(--sqfull,100vw) - var(--sqv,100vw))}
+  /* enough page below the image that it can always shrink to the band, with or without art */
+  /* no forced page height: the page scrolls only as far as there is content (no empty space at the end) */
+  body.snap .square{transition:height .22s ease-out,margin-bottom .22s ease-out}
+  /* the empty drop area, made small enough for the band */
+  body.band .square .drop{padding:9px}
+  body.band .square .drop .upicon{width:56px;height:56px}
+  body.band .square .drop b{font-size:17px}
+  body.band .square .drop .small{display:none}
+  .square{z-index:12}
+  .pane.work > .viewbar{order:-2;position:sticky;top:var(--sqh,100vw);z-index:11;height:42px;box-sizing:border-box;padding:3px 12px;gap:0;flex-wrap:nowrap;background:var(--surface);border-bottom:1px solid #d9d9d9}
+  .viewbar #view{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .viewbar #view button{height:36px;padding:0;font-size:11px;letter-spacing:.08em}
+  .viewbar > .tog,.viewbar > .hw{display:none}
+  .pane.work > .rating{order:-1;display:block;top:calc(var(--sqh,100vw) + var(--vbh,42px));background:var(--surface);border:0}
+  .rating > .rmain,.rating > .rdata{display:none}
+  .rline{display:flex;align-items:center;gap:8px;width:100%;height:40px;box-sizing:border-box;border:0;border-bottom:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 12px;text-align:left;text-transform:none;letter-spacing:0;font-weight:400}
+  .rline:hover{background:var(--surface)}
+  .rline > b{font-size:17px}
+  .rline .stars{font-size:14px;letter-spacing:1px}
+  .rating.bad .rline .stars i.on{color:var(--red)}.rating.ok .rline .stars i.on{color:var(--green)}
+  .rlde{flex:1;min-width:0;font-size:12px;color:var(--fg);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rlchk{font-size:11px;font-weight:700;color:var(--red);border:1px solid var(--red);padding:2px 6px;white-space:nowrap}
+  .rlchk.ok{color:var(--green);border-color:var(--green)}
+  .rlarr{font-size:14px;font-weight:700}
+  .rating.open .rlarr{transform:rotate(180deg)}
+  .rating.open > .rdata{display:flex;gap:9px;padding:9px 12px 12px;background:var(--stripe);border-bottom:1px solid var(--line);max-height:calc(100vh - var(--sqh,100vw) - 160px);overflow:auto}
+  .rating.open .rfacts{border:1px solid #d9d9d9;background:var(--surface)}
+  .rating.open .rfacts > span{padding:6px}.rating.open .rfacts .lab{font-size:9px;letter-spacing:.1em}.rating.open .rfacts b{font-size:15px}.rating.open .rfacts small{display:block;font-size:10px}
+  .rating.open .rwhy{display:block;padding:0;font-size:12px}
+  .rating.open .checks{margin:0}
+  .mnav{border-top:0;padding-top:12px}
+  .mprog{display:grid;position:absolute;left:0;right:0;top:0;height:4px;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;background:var(--surface)}
+  .mprog i{background:#d9d9d9}.mprog i.done{background:var(--green)}.mprog i.cur{background:var(--fg)}
+}
+@media (max-width:960px){
+  .pane.work > details.more{display:none}
+  body:not([data-view=cmp]):not([data-view=film]) .pane.work > .note{display:none}
+}
+/* fixed tracks so the canvas's max-height:100% resolves when the square is a short band */
+.square .canvasbox:not(:has(canvas.zoomed)){grid-template:minmax(0,100%)/minmax(0,100%)}
+
+/* phone stack: the band and view row scroll off; the rating line stays, with a small picture of the art */
+@media (max-width:960px){
+  .square{top:calc(0px - var(--sqoff,0px))}
+  .pane.work > .viewbar{top:calc(var(--sqh,100vw) - var(--sqoff,0px))}
+  .pane.work > .rating{top:calc(var(--sqh,100vw) + var(--vbh,42px) - var(--sqoff,0px))}
+  body.snap .square,body.snap .pane.work > .viewbar,body.snap .pane.work > .rating{transition:top .22s ease-out,height .22s ease-out,margin-bottom .22s ease-out}
+  .rlrow{display:flex;border-bottom:1px solid var(--line);background:var(--surface)}
+  .rlrow .rline{flex:1;min-width:0;border-bottom:0}
+  body.artoff .rlart{display:block;flex:none;width:40px;height:40px;padding:3px;border:0;border-right:1px solid var(--line);background:#111}
+  .rlart canvas{display:block;width:100%;height:100%}
+  /* Inspect controls: no negative margin here, so the hint never sits under the swatches */
+  .pane.work > #zoomBox,.pane.work > #chanBox{margin-top:0;padding-top:6px;padding-bottom:3px}
+  .mnav{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+}
+
+/* phone: the open rating is a panel over the content (it never pushes the content, so nothing jumps while you scroll) */
+@media (max-width:960px){
+  .pane.work > .rating{position:sticky}
+  .rating.open > .rdata{position:absolute;left:0;right:0;top:100%;z-index:1;box-shadow:0 6px 12px rgba(0,0,0,.25);
+    max-height:calc(100vh - var(--sqh,100vw) - var(--vbh,42px) + var(--sqoff,0px) - 40px - 76px - env(safe-area-inset-bottom,0px))}
+}
+
+/* phone: the finer settings fold into "Advanced [+]" inside the open step */
+.advtog{display:none}
+@media (max-width:960px){
+  .advtog{display:flex;align-items:center;justify-content:space-between;width:100%;height:42px;padding:0 12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .advtog b{font-size:13px;letter-spacing:0;font-variant-numeric:tabular-nums}
+  .advtog[aria-expanded=true]{border-bottom-color:transparent;background:var(--stripe)}
+  .stbody > .pane.side:not(.advopen){display:none}
+  .stbody > .pane.side.advopen{border:1px solid var(--line);border-top:0;padding:9px 12px 12px;margin-top:-1px;background:var(--surface)}
+  .stbody > .pane.side > .panelhead:first-child{display:none}
+}
+
+/* phone: the rating is a chip in the Back/Next bar; tapping it opens the details as a sheet above the bar */
+.mrate,.rclose{display:none}
+@media (max-width:960px){
+  .pane.work > .rating{display:none}
+  .pane.work > .rating.open{display:flex;flex-direction:column;gap:9px;position:fixed;left:0;right:0;top:auto;bottom:var(--navh,67px);z-index:29;max-height:calc(100vh - var(--navh,67px) - 24px);overflow:auto;padding:12px;box-sizing:border-box;background:var(--stripe);border-top:1px solid var(--line);box-shadow:0 -6px 12px rgba(0,0,0,.18)}
+  .pane.work > .rating.open > .rmain{display:flex;align-items:center;gap:9px;padding:0;border:0}
+  .rating.open .rmain .lab{order:3;font-size:10px}.rating.open .rnum b{font-size:22px}.rating.open .rnum span{display:none}.rating.open .stars{font-size:16px}
+  .rating.open .rclose{display:block;order:4;margin-left:auto;border:0;background:transparent;padding:6px 0 6px 12px;font-size:12px;text-decoration:underline}
+  .pane.work > .rating.open > .rdata{position:static;display:flex;flex-direction:column;gap:9px;max-height:none;overflow:visible;padding:0;background:transparent;border:0;box-shadow:none}
+  .mnav{align-items:center}
+  .mnav #mBack{width:46px;flex:none;padding:0;font-size:16px;letter-spacing:0}
+  .mrate{display:flex;flex:none;height:46px;box-sizing:border-box;border:1px solid var(--line);background:var(--surface)}
+  .mrate:has(.mrchk.bad){border-color:var(--red)}.mrate:has(.mrchk.ok){border-color:var(--green)}
+  .mrate button{height:44px;border:0;padding:0}
+  .mrbtn{display:grid;grid-template-columns:auto auto;align-items:center;column-gap:6px;padding:0 8px!important;background:transparent;text-transform:none;letter-spacing:0;text-align:left}
+  .mrtop{display:flex;align-items:baseline;gap:3px;line-height:1.1}.mrtop b{font-size:16px}.mrstar{font-size:12px;color:var(--gold)}
+  .mrchk{grid-column:1;font-size:10px;font-weight:700;letter-spacing:.04em;line-height:1.1;color:var(--muted);white-space:nowrap}
+  .mrchk.bad{color:var(--red)}.mrchk.ok{color:var(--green)}
+  .mrarr{grid-column:2;grid-row:1/span 2;font-size:12px;font-weight:700}
+  .mnav #mNext{flex:1;min-width:0;white-space:nowrap;overflow:hidden;padding:0 9px}
+}
+@media (max-width:960px){.mrate[data-r=bad] .mrstar{color:var(--red)}}
+
+/* the image keeps its proportions at any height (Inspect gives the canvas a fixed width; the band caps its height) */
+.square .canvasbox canvas{object-fit:contain}
+
+/* ───── phone, compact (boards Compact A–D) ───── */
+@media (max-width:960px){
+  /* step rows: a closed step is one 33 px line with [+]; the open step has [−] */
+  .stbtn{min-height:33px;padding:5px 10px;grid-template-columns:21px minmax(0,1fr) auto;gap:9px}
+  .stt{display:flex;align-items:baseline;gap:9px;min-width:0}
+  .sttitle{flex:none;font-size:11px;letter-spacing:.1em}
+  .stsum{flex:1 1 auto;min-width:0;font-size:12px}
+  .badge,.sstep.done .badge{width:21px;height:21px;font-size:12px}
+  .stact{font-size:13px;text-decoration:none;letter-spacing:0;font-variant-numeric:tabular-nums}
+  .sstep:not(.open) .sthead .hw{display:none}
+  .sstep.open .stbtn{min-height:44px}
+  .sstep.open .badge{width:27px;height:27px;font-size:13px}
+  .sstep.open .sttitle{font-size:12px;letter-spacing:.12em}
+  /* garment: one row of t-shirts, no boxes; the chosen one is underlined and named in the label */
+  .tees{grid-template-columns:repeat(12,minmax(0,1fr));gap:0}
+  .tees button,.tees .chip-other{border:0;background:transparent;padding:3px 0 8px;outline:0!important;position:relative}
+  .tees button > span,.tees .chip-other > span{display:none}
+  .tees svg{width:24px;height:24px}
+  .tees button[aria-pressed=true]::after{content:"";position:absolute;left:50%;bottom:1px;width:18px;height:3px;margin-left:-9px;background:var(--fg)}
+  .teename{color:var(--fg)}
+  /* art type: the pictures stay, half the height; the explanation is in ? */
+  .arttypes button{display:flex;align-items:center;justify-content:flex-start;gap:6px;height:50px;padding:0 6px;font-size:11px;text-align:left}
+  .arttypes svg{width:40px;max-width:40px;flex:none}
+  #modeHelp{display:none}
+  /* Inspect: screen swatches first (one row you swipe), the zoom slider under them with a 100% button */
+  .pane.work > #chanBox{order:-1}
+  #chanSel{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:3px 2px}
+  #chanSel::-webkit-scrollbar{display:none}
+  .zoomwrap{display:flex;align-items:center;gap:9px}
+  .zoomrow{flex:1 1 auto}
+  #zoomSteps{flex:none}
+  #zoomSteps button:not([data-z="1"]){display:none}
+  #zoomSteps button[data-z="1"]{border-right-width:1px;height:30px;padding:0 9px}
+  #inspWhere{display:none}
+  body[data-view=film] .pane.work > .note{display:none}
+  /* bottom: a slim rating row, the step strip, then Back / Next */
+  .mnav{flex-direction:column;align-items:stretch;gap:0;padding:0;border-top:1px solid var(--line)}
+  .mnav .mprog{position:static}
+  .mbtns{display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px))}
+  .mnav #mBack{width:auto;flex:none;padding:0 14px;font-size:12px;letter-spacing:.1em}
+  .mnav .mrrow{display:flex;align-items:center;gap:7px;height:28px;padding:0 12px;border:0;background:var(--surface);color:var(--fg);text-transform:none;letter-spacing:0;font-weight:400;font-size:12px;text-align:left}
+  .mrrow > b{font-size:14px}
+  .mrrow .stars{font-size:12px;letter-spacing:1px}
+  .mrrow[data-r=bad] .stars i.on{color:var(--red)}
+  .mrde{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+  .mrrow .mrchk{font-size:10px}
+  .mrrow .mrarr{font-size:11px}
+  /* ? help: a bigger target than it looks */
+  button.q{position:relative}
+  button.q::after{content:"";position:absolute;inset:-9px}
+}
+@media (max-width:960px){
+  #zoomSteps{display:flex}
+  .zoomwrap{flex:1 1 auto}
+  .sstep.open .stbtn{grid-template-columns:27px minmax(0,1fr) auto}
+  .arttypes button{gap:5px;padding:0 5px;font-size:10.5px;line-height:1.15}
+  .arttypes svg{width:30px;max-width:30px}
+}
+@media (max-width:359px){ .arttypes button{flex-direction:column;justify-content:center;gap:3px;height:62px;text-align:center} }
+
+/* the [+] / [−] (Edit / Open) marker sits outside the row button */
+.stact{cursor:pointer;flex:none}
+.sthead > .stbtn{order:0}.sthead > .stact{order:1;padding:0 12px}.sthead > .hw{order:2}
+@media (max-width:960px){
+  /* one place for [+] / [−]: the right edge of every row; ? sits right after the open step's title */
+  .stbtn{grid-template-columns:21px minmax(0,1fr);padding-right:6px}
+  .sstep.open .stbtn{grid-template-columns:27px minmax(0,1fr);flex:0 1 auto}
+  .sthead > .hw{order:1;padding:0}
+  .sthead > .stact{order:2;align-self:stretch;display:flex;align-items:center;justify-content:flex-end;padding:0 10px 0 6px}
+  .sstep.open .sthead > .stact{flex:1 1 auto}
+}
+@media (max-width:960px){.sstep.open .sthead > .stact{padding-right:9px}}
+
+/* ───── compact steps, t-shirt row and the Width / LPI / Press row on every screen (boards Compact A–D, Desktop compact) ───── */
+.stbtn{min-height:36px;padding:5px 6px 5px 12px;grid-template-columns:22px minmax(0,1fr);gap:10px}
+.stt{display:flex;align-items:baseline;gap:9px;min-width:0}
+.sttitle{flex:none;font-size:11px;letter-spacing:.1em}
+.stsum{flex:1 1 auto;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge,.sstep.done .badge{width:22px;height:22px;font-size:12px}
+.stact{font-size:13px;text-decoration:none;letter-spacing:0;font-variant-numeric:tabular-nums}
+.sstep:not(.open) .sthead .hw{display:none}
+.sstep.open .stbtn{min-height:46px;grid-template-columns:28px minmax(0,1fr);flex:0 1 auto}
+.sstep.open .badge{width:28px;height:28px;font-size:13px}
+.sstep.open .sttitle{font-size:12px;letter-spacing:.12em}
+.sthead > .hw{order:1;padding:0}
+.sthead > .stact{order:2;align-self:stretch;display:flex;align-items:center;justify-content:flex-end;padding:0 12px 0 6px}
+.sstep.open .sthead > .stact{flex:1 1 auto;padding-right:11px}
+.tees{grid-template-columns:repeat(12,minmax(0,1fr));gap:0}
+.tees button,.tees .chip-other{border:0;background:transparent;padding:3px 0 8px;outline:0!important;position:relative}
+.tees button > span,.tees .chip-other > span{display:none}
+.tees svg{width:22px;height:22px}
+.tees button[aria-pressed=true]::after{content:"";position:absolute;left:50%;bottom:1px;width:16px;height:3px;margin-left:-8px;background:var(--fg)}
+.teename{color:var(--fg)}
+.wlp{grid-template-columns:minmax(0,1fr) minmax(0,.8fr) minmax(0,1.2fr);gap:9px}
+.wlp .lab{white-space:nowrap}
+/* Inspect: swatches first, then the slider; the explanation is in ? */
+#chanBox{order:0}
+#inspWhere{display:none}
+#chanBox .chanpick{flex-wrap:nowrap}
+.drate{display:none}
+
+/* ───── desktop ───── */
+@media (min-width:961px){
+  .pane.work > *{width:var(--dw,min(100%,640px))}
+  .pane.work > .square{order:1}
+  .pane.work > #chanBox{order:2;margin-top:0}
+  .pane.work > #zoomBox{order:3;margin-top:0}
+  .pane.work > .note{order:4}
+  .pane.work > .rating{order:5}
+  .pane.work > .viewbar{order:0}
+  .pane.work > details,.pane.work > .hiddenbits{order:6}
+  body:not([data-view=cmp]) .pane.work > .note{display:none}
+  .zoomwrap{display:flex;align-items:center;gap:12px}
+  .zoomrow{flex:1 1 auto}
+  #zoomSteps{display:flex;flex:none}
+  /* the rating: one slim row under the image; details open above it */
+  .rating{display:block;position:relative;border:1px solid #d9d9d9;background:var(--surface)}
+  .rating > .rmain,.rating > .rdata{display:none}
+  .drate{display:flex;align-items:center;gap:14px;width:100%;height:34px;padding:0 12px;border:0;background:transparent;color:var(--fg);text-transform:none;letter-spacing:0;font-weight:400;text-align:left}
+  .drate > b{font-size:16px}
+  .drate .stars{font-size:13px;letter-spacing:1px}
+  .rating.bad .drate .stars i.on{color:var(--red)}
+  .drfacts{display:flex;gap:14px;flex:1 1 auto;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden}
+  .drfacts > span{display:flex;align-items:baseline;gap:5px}.drfacts .lab{font-size:9px}.drfacts b{font-size:13px}
+  .drate .mrchk{font-size:10px;font-weight:700;border:1px solid currentColor;padding:2px 6px}
+  .drate .mrchk.ok{color:var(--green)}.drate .mrchk.bad{color:var(--red)}
+  .drate .mrarr{font-size:11px;font-weight:700}
+  .rating.open > .rdata{display:flex;flex-direction:column;position:absolute;left:-1px;right:-1px;bottom:100%;z-index:6;max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--line);box-shadow:0 -6px 14px rgba(0,0,0,.18)}
+  .rating.open{z-index:15} /* the open details sit over the zoom row (#zoomBox z-index 14), not under it */
+  /* a row too narrow for the facts (three panes at about 1024 px): the facts go on their own lines, in full */
+  .rating{container-type:inline-size}
+  @container (max-width:499px){
+    .drate{flex-wrap:wrap;height:auto;min-height:34px;padding:6px 12px;row-gap:3px}
+    .drfacts{order:9;flex:1 0 100%;flex-wrap:wrap;overflow:visible;gap:2px 14px}
+    .drate .mrchk{margin-left:auto}
+  }
+}
+@media (max-width:960px){
+  .stbtn{min-height:33px;padding:5px 6px 5px 10px;grid-template-columns:21px minmax(0,1fr);gap:9px}
+  .badge,.sstep.done .badge{width:21px;height:21px}
+  .sstep.open .stbtn{min-height:44px;grid-template-columns:27px minmax(0,1fr)}
+  .sstep.open .badge{width:27px;height:27px}
+  .sthead > .stact{padding-right:10px}.sstep.open .sthead > .stact{padding-right:9px}
+  .tees svg{width:24px;height:24px}
+}
+#modeHelp{display:none}
+
+/* −/+ steppers: W and H on one row, LPI and Press on the next; Color screens is narrow (two digits) */
+.wh{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.stepper.sp{display:grid;grid-template-columns:36px minmax(0,1fr) 36px;height:38px}
+.stepper.sp button{padding:0;font-size:16px;height:100%}
+.stepper.sp input{height:100%;min-width:0;padding:0 2px;text-align:center;-moz-appearance:textfield}
+.stepper.sp input::-webkit-outer-spin-button,.stepper.sp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stepper.sp input:disabled{opacity:.5}
+.stepper.narrow{width:132px}
+.wh select{height:38px}
+
+/* loading mask over the image while it works */
+.busymask{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,16,137,.28);pointer-events:none}
+.busymask[hidden]{display:none}
+.busylogo{display:grid;place-items:center;background:#ffffff;border:1px solid var(--line);padding:9px 12px}
+.busylogo img,.busylogo video{display:block;height:42px;width:auto}
+.busylogo.still img{animation:adnpulse 1.1s ease-in-out infinite}
+@keyframes adnpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.92)}}
+.busymask .busytext{background:var(--surface);color:var(--fg);border:1px solid var(--line);padding:5px 10px;font-size:12px;font-weight:700;letter-spacing:.06em;max-width:80%;text-align:center}
+body.band .busymask{gap:6px}body.band .busylogo img,body.band .busylogo video{height:30px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.busylogo img,.busylogo video{animation:none!important}}
+
+/* phones: while working, the bottom rating row shows the logo and the status instead of the score */
+.mrbusy{display:none}
+@media (max-width:960px){
+  body.busy .mnav .mrrow > :not(.mrbusy){display:none}
+  body.busy .mrbusy{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.04em;min-width:0}
+  body.busy .mrbusy #mrBusyText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .busylogo.sm{padding:0;border:0;background:transparent}.busylogo.sm img,.busylogo.sm video{height:18px}
+}
+.mnav .mrrow .busylogo.sm img,.mnav .mrrow .busylogo.sm video{height:16px;width:auto;max-width:28px}
+.drate .mrchk:empty,.mrrow .mrchk:empty{display:none}
+
+/* Inspect: the screen-name line sits under the swatches; the zoom line is FIT · slider · 100% with the percent floating above the handle */
+#chanBox .chanpick{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:6px 8px}
+#chanBox .chanpick > #chanSel{grid-column:1 / -1}
+.zoomline{display:flex;align-items:center;gap:9px;width:100%}
+.zoomline > button{flex:none;height:32px;padding:0 10px;font-size:11px;letter-spacing:.08em}
+.zoomline .zoomrow{flex:1 1 auto;position:relative;gap:0;min-width:0}
+.zoomline .zoomrow input[type=range]{flex:1 1 auto;width:100%;min-width:0;height:32px;margin:0}
+.ztip{position:absolute;bottom:calc(100% + 10px);left:0;transform:translateX(-50%);background:var(--fg);color:var(--surface);font-size:13px;font-weight:700;padding:4px 8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;min-width:0!important;text-align:center!important;z-index:5}
+.ztip::after{content:"";position:absolute;left:50%;top:100%;margin-left:-5px;border:5px solid transparent;border-top-color:var(--navy)}
+/* the bubble is navy with a grey edge, the pointer too (a grey triangle one pixel larger under the navy one); large
+   enough to read at a glance while dragging */
+.ztip{background:var(--navy);color:#ffffff;border:1px solid var(--line);font-size:17px;padding:7px 13px;bottom:calc(100% + 13px)}
+.ztip::after{margin-left:-7px;border-width:7px}
+.ztip::before{content:"";position:absolute;left:50%;top:100%;margin-left:-8px;border:8px solid transparent;border-top-color:var(--line)}
+.ztip.on{opacity:1}
+.zoomwrap,.zlab{display:none}
+@media (max-width:960px){.ztip{bottom:calc(100% + 24px);font-size:20px;padding:9px 16px}}
+#zoomSteps.zoomline > button{display:grid!important;place-items:center;border-right-width:1px!important}
+
+/* step 3: Color screens and Auto on one row; Separate full width under it */
+.scrrow{display:flex;gap:9px;align-items:stretch}
+.scrrow .stepper.narrow{flex:none}
+.autobtn{flex:1 1 auto;height:38px;padding:0 12px}
+.autobtn.on{background:var(--green);border-color:var(--green);color:#ffffff}
+.sepbtn{width:100%;height:42px;background:var(--sel-bg);color:var(--sel-fg);border-color:var(--sel-bg)}
+.sepbtn:hover{background:var(--sel-bg);filter:brightness(.95)}
+#status:empty{display:none}
+
+/* ── color rows (step 3): each screen filled with its ink, the text printed on the color ── */
+.cardsbox{display:grid;gap:6px;margin-top:9px}
+.cardsbox .panelhead{display:flex;align-items:center;justify-content:space-between}
+.cards{display:grid;grid-template-columns:minmax(0,1fr);gap:3px}
+.scard{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:6px;min-height:54px;box-sizing:border-box;padding:6px 6px 6px 9px;border:1px solid #999999;background:var(--ink);color:#ffffff;cursor:pointer;text-align:left}
+.scard.lt{color:#001089}
+.scard .srow1{display:flex;align-items:center;gap:6px}
+.scard .cpick{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:9px;border:0;background:transparent;color:inherit;padding:0;height:auto;text-align:left;text-transform:none;letter-spacing:0;font-weight:400}
+.scard .cpick:hover{background:transparent}
+.scard .so{flex:none;width:24px;font-size:21px;font-weight:700;line-height:1;text-align:center}
+.scard .sbody{min-width:0;display:flex;flex-direction:column;gap:1px}
+.scard .sn{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scard .sl{font-size:11px;line-height:1.35;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.scard .sact{flex:none;display:flex;align-items:center;gap:3px}
+.scard .grip{flex:none;width:26px;height:26px;padding:0;border:0;background:transparent;color:inherit;font-size:16px;line-height:1;cursor:grab;touch-action:none;opacity:.85}
+.scard .grip.ghost{display:inline-block}
+.scard .grip:hover{background:transparent;opacity:1}
+.scard .sexp{flex:none;width:30px;height:26px;padding:0;border:0;background:transparent;color:inherit;font-size:13px;font-weight:700;letter-spacing:0;font-variant-numeric:tabular-nums}
+.scard .sexp:hover{background:transparent}
+.scard .sdet{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 9px;margin:0 0 3px 33px;padding-top:6px;border-top:1px solid currentColor;cursor:default}
+.scard .sprod{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:6px 9px;margin:0 0 3px 33px;cursor:default}
+.scard .sprod .pf{display:grid;gap:2px;min-width:0}.scard .sprod .pl{display:flex;align-items:center;gap:3px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.9}
+.scard .sprod input,.scard .sprod select{height:30px;font-size:15px;letter-spacing:0;text-transform:none;font-weight:400;color:var(--fg);background:var(--surface);border:1px solid var(--line)}
+.scard .sprod select{height:auto;min-height:30px} /* phone WebKit cut the text in half in a 30 px select */
+.scard .sprod .q{color:inherit;border-color:currentColor;background:transparent;opacity:1}
+@media (max-width:480px){.scard .sprod{grid-template-columns:1fr}}
+.impbox{display:grid;gap:6px;margin-top:12px;padding-top:9px;border-top:1px solid var(--line)}
+#reportText{width:100%;font:12px/1.4 var(--mono);color:var(--fg);background:var(--surface);border:1px solid var(--line);padding:6px}
+.scard .sdet div{min-width:0}.scard .sdet dt{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.8}
+.scard .sdet dd{margin:0;font-size:12px;font-weight:700;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.scard .ibtn{width:26px;height:26px;background:#ffffff;color:#001089;border:1px solid #999999}
+.scard .ibtn[aria-pressed=true]{background:#b8dae8}
+.scard.cur{outline:3px solid var(--fg);outline-offset:-1px}
+.scard.hid{opacity:.45}
+.scard.lift{position:fixed;z-index:60;margin:0;pointer-events:none;outline:2px solid #001089;opacity:.95}
+.scard.slot{display:grid;place-items:center;background:var(--sel-bg,#eef3ff);border:2px dashed var(--fg);color:var(--fg);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:default}
+
+/* ── Advanced: Auto / Default on top; each setting says where its value came from ── */
+.autodef{display:flex;gap:6px;margin:0 0 9px}
+.autodef button{flex:1 1 0;height:36px;padding:0 9px;font-size:11px;letter-spacing:.1em}
+.atag{margin-left:6px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:0 4px;border:1px solid currentColor;vertical-align:1px}
+.atag:empty{display:none}
+.atag.auto{color:var(--green)}.atag.manual{color:var(--muted)}.atag.default{color:var(--fg)}
+
+/* ── garment colors: each in its own square ── */
+.tees{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:6px}
+.tees button,.tees .chip-other{border:1px solid #999999!important;background:var(--surface);aspect-ratio:1;padding:0!important;display:grid;place-items:center}
+.tees button[aria-pressed=true]{outline:3px solid var(--fg)!important;outline-offset:-1px}
+.tees button[aria-pressed=true]::after{display:none}
+.tees svg{width:26px;height:26px}
+
+/* ── zoom: one button steps Fit → 100% → 200% → 400% → Fit; the slider is for fine control ── */
+#zoomSteps.zoomline > .zstep{flex:none;display:flex!important;white-space:nowrap;align-items:center;justify-content:center;gap:6px;min-width:78px;height:32px;padding:0 9px;font-size:11px;letter-spacing:.08em;background:#b8dae8;border-color:#001089;color:#001089}
+#zoomSteps.zoomline > .zstep span{font-size:13px}
+
+/* ── views: Art / Compare / Print ── */
+@media (max-width:960px){ .viewbar #view{grid-template-columns:repeat(3,minmax(0,1fr))} }
+
+/* ── phones: the rating row sits under the image and the view buttons (in the pinned stack) ── */
+@media (max-width:960px){
+  .pane.work > .viewbar{height:auto;flex-wrap:wrap;padding:3px 12px 0}
+  .viewbar > .mrrow{display:flex;align-items:center;gap:7px;flex:1 1 100%;height:28px;margin:3px -12px 0;padding:0 12px;border:0;border-top:1px solid #d9d9d9;background:var(--surface);color:var(--fg);text-transform:none;letter-spacing:0;font-weight:400;font-size:12px;text-align:left}
+  .viewbar > .mrrow > b{font-size:14px}
+  .viewbar > .mrrow .stars{font-size:12px;letter-spacing:1px}
+  .viewbar > .mrrow[data-r=bad] .stars i.on{color:var(--red)}
+  .viewbar > .mrrow .mrchk{font-size:10px}
+  .viewbar > .mrrow .mrarr{font-size:11px}
+  body.busy .viewbar > .mrrow > :not(.mrbusy){display:none}
+  .viewbar > .mrrow .busylogo.sm img,.viewbar > .mrrow .busylogo.sm video{height:16px;width:auto;max-width:28px}
+  /* its details open as a sheet under the row */
+  .pane.work > .rating.open{top:calc(var(--sqh,100vw) + var(--vbh,72px) - var(--sqoff,0px));bottom:auto;max-height:calc(100vh - var(--sqh,100vw) - var(--vbh,72px) + var(--sqoff,0px) - var(--navh,67px) - 12px);box-shadow:0 6px 14px rgba(0,0,0,.18)}
+}
+
+/* the art card in step 1 opens the file picker (Replace) */
+.filecard[role=button]{cursor:pointer}
+.filecard[role=button]:hover{background:var(--hover)}
+
+/* the file input stays in the page (not display:none) so its <label>s open it natively on every phone */
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);opacity:0}
+/* the work pane stretches its children (.pane.work > *): a visually hidden child must stay 1 px, or the hidden file
+   input sticks 7 px past a phone screen and the page scrolls sideways */
+.pane.work > .vh{width:1px}
+
+/* status, Auto's reason and dropped screens in one compact notice */
+.notice{display:grid;gap:3px;padding:6px 9px;border:1px solid var(--line);border-left:3px solid var(--green);font-size:12px;line-height:1.45}
+.notice:not(:has(.statusline:not(:empty))):has(#autoNote[hidden]):has(#dropNote[hidden]){display:none}
+.notice .statusline{margin:0;font-weight:700}.notice .statusline.bad{color:var(--red)}
+.notice p,.notice div{margin:0}
+.notice #autoNote,.notice #dropNote{color:var(--fg);opacity:.85}
+/* zoom: FIT on the left (each tap zooms in one step), 100% on the right */
+#zoomSteps.zoomline > .zstep{min-width:54px}
+#zoomSteps.zoomline > .z100b{flex:none;display:grid!important;place-items:center;height:32px;padding:0 9px;font-size:11px;letter-spacing:.08em}
+/* bigger t-shirts in their squares */
+.tees{grid-template-columns:repeat(auto-fill,minmax(48px,1fr))}
+.tees svg{width:38px!important;height:38px!important}
+/* Numbers inside the rating details */
+.rdata .rnumlab{display:block;margin-top:6px;font-size:10px;letter-spacing:.1em}
+.rdata .stats{margin:0}
+.scard .ibtn.ghost{visibility:hidden}
+
+/* the zoom percent bubble sits above the image, so the zoom row stacks over it */
+#zoomBox{position:relative;z-index:14}
+/* color squares under the zoom row (step 3): tap = that film, drag = print order */
+.chipbar{display:flex;flex-wrap:wrap;gap:6px}
+.chipbar .chip{width:40px;height:40px;padding:0;display:grid;place-items:center;border:1px solid #999999;background:var(--ink);color:#ffffff;font-size:15px;font-weight:700;letter-spacing:0;touch-action:none;cursor:grab}
+.chipbar .chip.lt{color:#001089}
+.chipbar .chip:hover{background:var(--ink);outline:2px solid var(--fg);outline-offset:-2px}
+.chipbar .chip.cur{outline:3px solid var(--fg);outline-offset:-1px}
+.chipbar .chip.lift{position:fixed;z-index:60;pointer-events:none;outline:2px solid #001089}
+.chipbar .chip.slot{border:2px dashed var(--fg);background:transparent;cursor:default}
+@media (max-width:960px){ .pane.work > .chipbar{padding:3px 12px 0} }
+.scard .ibtn[data-del]{font-size:16px;font-weight:700;line-height:1}
+.scard .ibtn[disabled]{opacity:.4}
+.chipbar .chip{margin:0;flex:0 1 40px;min-width:0;width:auto;aspect-ratio:1;height:auto;max-width:40px;vertical-align:baseline}
+.chipbar{flex-wrap:nowrap}
+@media (min-width:961px){ .pane.work > #chipBar{order:3;margin-top:0} }
+/* the color squares keep their size on one row and scroll sideways when the screens do not fit */
+.chipbar{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;padding-bottom:3px}
+.chipbar .chip{flex:0 0 40px;width:40px;height:40px;max-width:none;aspect-ratio:auto;touch-action:pan-x}
+.chipbar .chip.armed{outline:3px dashed var(--fg);outline-offset:-1px}
+
+/* "Why Auto chose this": an expandable row under Color screens / Auto */
+.autowhy{border:1px solid var(--line);margin-top:6px}
+.awtog{display:flex;align-items:center;justify-content:space-between;width:100%;height:32px;padding:0 9px;border:0;background:var(--surface);color:var(--fg);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.awtog b{font-size:12px;letter-spacing:0}
+.awbody{display:grid;gap:6px;padding:6px 9px 9px;border-top:1px solid var(--line);font-size:12px;line-height:1.45}
+.awbody p{margin:0}
+.awtbl{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+.awtbl th{text-align:left;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding:3px 3px}
+.awtbl td{padding:3px 3px;border-bottom:1px solid #e6e6e6}
+.awtbl tr.win td{font-weight:700;background:var(--sel-bg);color:var(--sel-fg)}
+.awbody{overflow-x:auto}
+.awtbl{table-layout:auto}
+.awbody p.small{font-size:11px;opacity:.85}
+/* the notice: "Updated in …" with [+] on the right that opens Auto's reasoning */
+.notice{min-width:0;max-width:100%;box-sizing:border-box}
+.notice .nrow{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.notice .nrow > .statusline{flex:1 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere}
+.notice .awtog{width:auto;height:24px;padding:0 3px;border:0;background:transparent;color:var(--fg);font-size:12px;font-weight:700;letter-spacing:0}
+.notice .awtog[hidden]{display:none}
+.notice .awbody{padding:6px 0 3px;border-top:1px solid var(--line)}
+
+/* + Add ink */
+.cardsbox .panelhead{gap:9px}
+.addinkbtn{height:28px;padding:0 9px;font-size:11px;letter-spacing:.1em;border:1px solid var(--fg);background:var(--surface);color:var(--fg)}
+.scard .chosen{font-style:normal;margin-left:6px;font-size:9px;letter-spacing:.1em;border:1px solid currentColor;padding:0 3px;vertical-align:1px}
+dialog.addink{width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 48px);padding:12px;box-sizing:border-box;border:1px solid var(--fg);background:var(--surface);color:var(--fg)}
+dialog.addink::backdrop{background:rgba(0,16,137,.25)}
+@media (max-width:960px){ dialog.addink{margin:auto 0 0;width:100vw;max-width:100vw;max-height:82vh;border-width:2px 0 0} }
+.aitabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:9px 0}
+.aitabs button{height:34px;font-size:11px;letter-spacing:.08em}
+.aipane{display:grid;gap:6px}
+.aipane[hidden]{display:none}
+.aigrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;max-height:44vh;overflow:auto}
+.aiink{position:relative;height:58px;padding:4px 6px;border:1px solid #999999;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;text-align:left;text-transform:none;letter-spacing:0;font-weight:400}
+.aiink:hover{outline:2px solid var(--fg);outline-offset:-2px}
+.aiink b{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;line-height:1.2}
+.aiink span{font-size:9px;opacity:.85}
+.aiink.sel{outline:3px solid var(--fg);outline-offset:-1px}
+.aiink.used{opacity:.45}
+.aiink .ck{position:absolute;top:3px;right:5px;font-style:normal;font-size:13px}
+.aiedit{justify-self:stretch;height:36px;font-size:11px;letter-spacing:.1em}
+.aimiss{display:grid;gap:6px;max-height:44vh;overflow:auto}
+.aimrow{display:flex;align-items:center;gap:9px;border:1px solid var(--line);padding:6px}
+.aisw{flex:none;width:40px;height:40px;border:1px solid #999999}
+.aimt{flex:1;min-width:0;display:grid;font-size:12px;line-height:1.4}.aimt span{font-size:11px;opacity:.85}
+.aimadd{flex:none;height:30px;padding:0 9px;font-size:10px;letter-spacing:.1em}
+.aimadd[aria-pressed=true]{background:var(--sel-bg);color:var(--sel-fg)}
+#aiColor{width:100%;height:96px;padding:0;border:1px solid var(--line);background:none;cursor:pointer}
+.aifoot{display:flex;gap:8px;margin-top:12px}.aifoot button{height:42px}.aifoot .pri{flex:1}
+/* phones: the image band is pinned above the content, so the zoom row stays under it (no lifted stacking); the zoom
+   percent bubble shows above the slider, as on a desktop, over the pinned image (z 12) when the row is right under it */
+@media (max-width:960px){
+  #zoomBox{z-index:auto}
+  .ztip{z-index:13}
+}
+/* Clip sideways only. On a phone the ADN page sizes this frame to the
+   screen, so the frame's own page must scroll by touch to reach the
+   steps; overflow: clip on both axes blocks that. */
+html, body { max-width: 100%; overflow-x: clip; }
+/* The columns are as tall as their content. 100vh in this frame is the
+   frame's own height, so a frame sized from that height grows without end. */
+.v3 { min-height: 0; }
+.pane.steps, .v3 > .pane.side { position: static; height: auto; overflow: visible; }
+/* The whole step header, including [+] and [−], turns manila under the pointer. */
+.sthead:hover, .sthead:hover .stbtn { background: #f8eac7; }
+/* [−] sits on the same line as the open step's title. */
+.sthead { align-items: center; cursor: pointer; }
+.sthead > .stact, .sstep.open .sthead > .stact { align-self: center; flex: none; margin-left: auto; line-height: 1; display: flex; align-items: center; }
+.sstep.open .stt { align-items: center; }
+/* Art, Compare, Print: one box, one line between them. */
+#view.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; border: 1px solid var(--line); }
+#view.seg button { border: 0; border-right: 1px solid var(--line); margin: 0; height: 36px; background: var(--surface); }
+#view.seg button:last-child { border-right: 0; }
+#view.seg button[aria-pressed=true] { background: var(--sel-bg); color: var(--sel-fg); }
+.viewbar > .mrrow { border-top: 0; }
+
+
+/* Print method: a compact list (one line each: icon, name, what it is for); 1–3 colors adds Grayscale / Duotone / Tritone.
+   Wins over the art-type card rules at every width. */
+.arttypes.mlist{display:grid;grid-template-columns:1fr;gap:4px}
+.arttypes.mlist button{display:flex;align-items:center;justify-content:flex-start;gap:10px;height:46px;padding:0 8px;text-align:left;font-size:13px;line-height:1.2}
+.arttypes.mlist svg{width:44px;max-width:44px;flex:none;aspect-ratio:4/3}
+.arttypes.mlist small{display:block;font-weight:400;font-size:11px;color:var(--muted,#555);text-transform:none;letter-spacing:0}
+.tonepick{display:flex;margin-top:6px}
+.tonepick button{flex:1;height:32px;font-size:12px;padding:0}
+.tonepick button + button{border-left:0}
+.tonepick button[aria-pressed=true]{background:var(--fg);color:var(--bg,#fff)}
+
+/* accent suggestion: a colour the art needs that one more screen would print */
+.accentnote { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--gold); background: var(--surface); font-size: 13px; line-height: 1.35 }
+.accentnote span { flex: 1 1 220px; min-width: 0 }
+.accentnote button { flex: none }
+.fewernote .fewerbtns { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100% }
+.fewernote .fewerbtns button { flex: 0 1 auto; max-width: 100%; min-height: 36px; text-align: left }
+.fewernote .fsub { display: block; text-transform: none; letter-spacing: normal; font-weight: 400 }
+.adjgrid{gap:6px 12px}.field.moved .lab{color:var(--navy)}.field.moved .lab span{font-weight:700}
+@media (max-width:480px){.adjgrid .lab{letter-spacing:.03em}}
+.locknote{grid-column:1/-1;border:1px solid var(--line);background:var(--manila);color:var(--navy);padding:9px 12px}
+
+/* Framed (ADN tool page, wall): the page scrolls, not the table. --pin (app.js parentPin) is how far the page has
+   scrolled past the frame's top, so every sticky offset adds it: on a phone the art band, view row and rating line pin
+   under the page's headers; on a desktop the workspace column (art and rating) stays in view beside the steps. */
+@media (max-width:960px){
+  .square{top:var(--pin,0px)}
+  .pane.work > .viewbar{top:calc(var(--pin,0px) + var(--sqh,100vw))}
+  .pane.work > .rating{top:calc(var(--pin,0px) + var(--sqh,100vw) + var(--vbh,42px))}
+}
+@media (min-width:961px){
+  body.framed .pane.work{position:sticky;top:var(--pin,0px);align-self:start}
+}
+/* a finger on the image scrolls the page unless Print is zoomed in (then the drag pans the film); a tap still zooms */
+#view0:not(.zoomed){touch-action:pan-y}
+/* phone: only the image pins (a band as you scroll); the view row (Art, Compare, Print) and the rating line sit under it
+   in the page and scroll with the steps, so the steps and their buttons get the rest of the screen */
+@media (max-width:960px){ .pane.work > .viewbar,.pane.work > .rating{position:static;top:auto} }
+/* the sample link in the empty drop box: one line, never wider than the box */
+.drop .droptry{justify-self:center;align-self:center;text-align:center;margin-top:6px;font-size:13px;font-weight:700;text-decoration:underline;color:var(--navy);background:none;border:0;padding:6px 9px;cursor:pointer;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+/* the empty drop box fits its content to its own height (small phones): first the privacy line goes, then the icon
+   and the spacing shrink, so nothing crosses the dashed border */
+.square .drop{container:drop / size}
+@container drop (max-height:265px){.square .drop .dropempty .small{display:none}.square .drop .dropempty{gap:5px}}
+@container drop (max-height:215px){.square .drop .upicon{width:44px;height:44px}.square .drop b{font-size:16px}.square .drop .droptry{margin-top:0;padding:4px 9px}}
+@container drop (max-height:160px){.square .drop .dropempty > span{display:none}}
+body.band .square .drop .droptry{display:none}
+/* zoom slider on touch screens: the row reads the finger (app.js): a sideways drag moves it, a tap jumps, an up/down
+   drag scrolls the page, so a scroll that starts on the slider row no longer zooms the film */
+.zoomrow{touch-action:pan-y}
+/* the row reads every pointer (app.js), so device detection cannot miss a phone; the keyboard still reaches the slider */
+#zoomSlider{pointer-events:none}
+.zoomrow{cursor:pointer}
+#reportBox{border-top:0;margin-top:0;padding-top:0}
+/* Jobs bar: the open job on one row; New, Close, Undo and Redo on the next */
+.jobbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 8px;min-width:0}
+.jobbar .lab{margin:0;flex:none}
+.jobbar select{flex:1 1 60%;min-width:0;width:auto}
+.jobbar button{flex:none;padding:0 10px;min-height:36px}
+.jobbar .undo{display:flex;align-items:center;gap:6px;margin-left:auto}
+.jobnote{margin:0 0 8px}
+/* Press step-through */
+.pstep{display:flex;align-items:center;gap:8px;margin:6px 0}
+.pstep button{flex:none;min-width:44px;min-height:36px}
+.pstep span[role=status]{flex:1 1 auto;min-width:0;font-size:14px}
+/* five views (Art, Compare, Print, Press, Stack) on one row at every width */
+:root.later #view.seg, :root.later .viewbar #view{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:960px){ :root.later .viewbar #view{grid-template-columns:repeat(5,minmax(0,1fr))} }
+@media (max-width:560px){ :root.later #view{grid-template-columns:repeat(5,minmax(0,1fr))} :root.later #view button{letter-spacing:.02em} }

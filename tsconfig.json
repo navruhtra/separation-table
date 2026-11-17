@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "WebWorker"],
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src/globals.d.ts", "src/adjust.js", "src/checks.js", "src/sizes.js", "src/engine.js", "src/pipeline.js", "src/plan.js", "src/targets.js", "src/calib.js", "src/inks.js", "src/output.js", "src/filmimport.js", "src/job.js", "src/worker.js", "src/vector.js", "src/icc.js", "src/cvtools.js", "src/ai.js", "src/app.js", "src/version.js"],
+  "exclude": ["src/vendor", "src/models", ".cache"]
+}

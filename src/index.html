@@ -1,0 +1,353 @@
+<title>ADN Separation Table</title>
+<link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/brand/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="assets/brand/favicon-16.png" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="assets/brand/apple-touch-icon-180.png" sizes="180x180">
+<link rel="stylesheet" href="bench.css">
+<script>
+/* Start-up guard: if the app's script fails in this browser, say so on the page (with the error) instead of a page
+   that silently does nothing. app.js sets window.sepReady when it has started. */
+(function () {
+  var shown = false;
+  function show(msg) {
+    if (shown || window.sepReady) return; shown = true;
+    var d = document.createElement("div"); d.id = "bootErr"; d.setAttribute("role", "alert");
+    d.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:999;background:#a60315;color:#fff;font:13px/1.45 'Helvetica Neue',Helvetica,Arial,sans-serif;padding:12px 15px";
+    d.textContent = "Separation Table could not start in this browser. Reload the page (Ctrl+Shift+R, or Cmd+Shift+R on a Mac). If this stays, send this line to ADN: " + msg + " | " + navigator.userAgent;
+    (document.body || document.documentElement).appendChild(d);
+  }
+  window.addEventListener("error", function (e) {
+    var t = e.target;
+    if (t && t !== window && (t.src || t.href)) show("could not load " + (t.src || t.href));
+    else show((e.message || "error") + (e.filename ? " at " + e.filename.split("/").pop() + ":" + e.lineno : ""));
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) { show("start-up failed: " + (e.reason && e.reason.message || e.reason)); });
+  window.addEventListener("load", function () { setTimeout(function () { show("the app script did not run (blocked, or not supported by this browser)"); }, 8000); });
+})();
+</script>
+<script nomodule>document.write("<p style='padding:12px;background:#a60315;color:#fff'>This browser is too old for Separation Table. Use a current Chrome, Edge, Safari or Firefox.</p>");</script>
+
+<header class="mhead"><b>Separation Table</b><button type="button" id="mShop" aria-label="Shop setup"><svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true" fill="currentColor"><path d="M6.76 3.17 L7.43 0.9 L10.57 0.9 L11.24 3.17 L12.93 4.14 L15.23 3.59 L16.8 6.31 L15.17 8.02 L15.17 9.98 L16.8 11.69 L15.23 14.41 L12.93 13.86 L11.24 14.83 L10.57 17.1 L7.43 17.1 L6.76 14.83 L5.07 13.86 L2.77 14.41 L1.2 11.69 L2.83 9.98 L2.83 8.02 L1.2 6.31 L2.77 3.59 L5.07 4.14 Z M11.5 9 A2.5 2.5 0 1 0 6.5 9 A2.5 2.5 0 1 0 11.5 9 Z"/></svg></button></header>
+<div class="v3">
+<aside class="pane steps" id="paneSteps" aria-label="Steps">
+  <div class="brand"><div class="lab">ADN · Plastisol prepress</div><h1>Separation Table</h1></div>
+  <div class="jobbar" id="jobBar"><label class="lab" for="jobSel" data-help="jobs" data-later>Job</label><select id="jobSel" aria-label="Open jobs" data-later></select><button type="button" id="jobNew" data-later>New</button><button type="button" id="jobClose" data-later>Close</button>
+    <span class="undo"><button type="button" id="undo" aria-label="Undo" disabled>Undo</button><button type="button" id="redo" aria-label="Redo" disabled>Redo</button><span class="hw" data-help="undo"></span></span></div>
+  <p class="small jobnote" id="jobNote" role="status" hidden></p>
+  <section class="sstep" id="step1" data-step="1" aria-labelledby="sth1">
+    <div class="sthead"><button type="button" class="stbtn" id="step1Btn" aria-expanded="false" aria-controls="step1Body"><span class="badge" id="step1Badge">1</span><span class="stt"><span class="sttitle" id="sth1">Artwork</span><span class="stsum" id="step1Sum"></span></span></button><span class="hw" data-help="art"></span><span class="stact" aria-hidden="true" id="step1Act">Open</span></div>
+    <div class="stbody" id="step1Body" hidden>
+      <p class="stlead">Drop your art in the workspace, or click it to select a file.</p>
+      <label class="filecard" id="fileCard" for="file" tabindex="0" aria-label="Replace the art: choose another file" hidden><canvas id="artThumb" width="144" height="144" aria-hidden="true"></canvas><div class="fc"><b id="artName"></b><span id="artSize"></span><span id="artInfo"></span></div><span class="fcact">Replace</span></label>
+      <button type="button" class="linkbtn" id="trySample">Try the sample design</button>
+      <div class="impbox" id="impBox" data-later><span class="lab" data-help="reproof">Re-proof separated films</span>
+        <div class="row"><button type="button" id="impOpen">Open PSD or TIFF films</button><button type="button" id="impClose" hidden>Close the films</button></div>
+        <input type="file" id="impFile" multiple accept=".psd,.tif,.tiff,.json,image/tiff,image/vnd.adobe.photoshop,application/json" hidden>
+        <p class="small" id="impNote" role="status">A Photoshop file with one spot channel for each screen, or one TIFF film for each screen.</p></div>
+      <button type="button" class="next" data-next="2">Next: Garment / press →</button>
+    </div>
+  </section>
+  <section class="sstep" id="step2" data-step="2" aria-labelledby="sth2">
+    <div class="sthead"><button type="button" class="stbtn" id="step2Btn" aria-expanded="false" aria-controls="step2Body"><span class="badge" id="step2Badge">2</span><span class="stt"><span class="sttitle" id="sth2">Garment / press</span><span class="stsum" id="step2Sum"></span></span></button><span class="hw" data-help="step2"></span><span class="stact" aria-hidden="true" id="step2Act">Open</span></div>
+    <div class="stbody" id="step2Body" hidden>
+      <div class="field"><span class="lab" data-help="shirt">Garment color · <span class="teename" id="teeName">Black</span></span>
+      <div class="chips tees" id="shirtChips">
+        <button type="button" data-hex="#111111" aria-label="Black" title="Black"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#111111"/></svg><span>Black</span></button>
+        <button type="button" data-hex="#ffffff" aria-label="White" title="White"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#ffffff"/></svg><span>White</span></button>
+        <button type="button" data-hex="#1c2a4a" aria-label="Navy" title="Navy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#1c2a4a"/></svg><span>Navy</span></button>
+        <button type="button" data-hex="#6e6e6e" aria-label="Charcoal" title="Charcoal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#6e6e6e"/></svg><span>Charcoal</span></button>
+        <button type="button" data-hex="#7a1f2b" aria-label="Maroon" title="Maroon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#7a1f2b"/></svg><span>Maroon</span></button>
+        <button type="button" data-hex="#c9b48f" aria-label="Sand" title="Sand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#c9b48f"/></svg><span>Sand</span></button>
+        <button type="button" data-hex="#1f4e9c" aria-label="Royal" title="Royal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#1f4e9c"/></svg><span>Royal</span></button>
+        <button type="button" data-hex="#b3121e" aria-label="Red" title="Red"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#b3121e"/></svg><span>Red</span></button>
+        <button type="button" data-hex="#2d5a3a" aria-label="Forest" title="Forest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#2d5a3a"/></svg><span>Forest</span></button>
+        <button type="button" data-hex="#a7a9ac" aria-label="Heather" title="Heather"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="#a7a9ac"/></svg><span>Heather</span></button>
+        <label class="chip-other" title="Any other garment color"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5 1 9.5 4 11.5 5 10.5V21h14V10.5l1 1 3-2L20 5l-4-2c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z" fill="url(#rainbow)"/><defs><linearGradient id="rainbow" x1="0" x2="1"><stop offset="0" stop-color="#e53935"/><stop offset=".33" stop-color="#fdd835"/><stop offset=".66" stop-color="#43a047"/><stop offset="1" stop-color="#1e88e5"/></linearGradient></defs></svg><span>Other</span><input type="color" id="garment" value="#111111" aria-label="Other garment color"></label>
+      </div></div>
+      <div class="field"><label class="lab" for="fabric" data-help="fabric">Fabric</label><select id="fabric"><option value="cotton">100% cotton</option><option value="blend">50/50 cotton-poly</option><option value="triblend">Tri-blend</option><option value="poly">100% polyester</option><option value="heather">Heather</option><option value="fleece">Fleece</option></select>
+        <p class="small" id="fabricNote"></p></div>
+      <div class="two wh" id="whIn">
+        <div class="field"><label class="lab" for="outW" data-help="outW">Width, in</label><div class="stepper sp"><button type="button" class="stp" data-for="outW" data-d="-0.5" aria-label="Width smaller">−</button><input type="number" id="outW" min="1" max="30" step="0.25" value="11"><button type="button" class="stp" data-for="outW" data-d="0.5" aria-label="Width larger">+</button></div></div>
+        <div class="field"><label class="lab" for="outH" data-help="outH">Height, in</label><div class="stepper sp"><button type="button" class="stp" data-for="outH" data-d="-0.5" aria-label="Height smaller">−</button><input type="number" id="outH" min="1" max="40" step="0.25" value=""><button type="button" class="stp" data-for="outH" data-d="0.5" aria-label="Height larger">+</button></div></div>
+      </div>
+      <div class="two wh" id="whCm" hidden>
+        <div class="field"><label class="lab" for="outWcm" data-help="outW">Width, cm</label><div class="stepper sp"><button type="button" class="stp" data-for="outWcm" data-d="-1" aria-label="Width smaller">−</button><input type="number" id="outWcm" min="2.5" max="76.2" step="0.5"><button type="button" class="stp" data-for="outWcm" data-d="1" aria-label="Width larger">+</button></div></div>
+        <div class="field"><label class="lab" for="outHcm" data-help="outH">Height, cm</label><div class="stepper sp"><button type="button" class="stp" data-for="outHcm" data-d="-1" aria-label="Height smaller">−</button><input type="number" id="outHcm" min="2.5" max="101.6" step="0.5"><button type="button" class="stp" data-for="outHcm" data-d="1" aria-label="Height larger">+</button></div></div>
+      </div>
+      <button type="button" class="next" data-next="3">Next: Separation →</button>
+    </div>
+  </section>
+  <section class="sstep" id="step3" data-step="3" aria-labelledby="sth3">
+    <div class="sthead"><button type="button" class="stbtn" id="step3Btn" aria-expanded="false" aria-controls="step3Body"><span class="badge" id="step3Badge">3</span><span class="stt"><span class="sttitle" id="sth3">Separation</span><span class="stsum" id="step3Sum"></span></span></button><span class="hw" data-help="step3"></span><span class="stact" aria-hidden="true" id="step3Act">Open</span></div>
+    <div class="stbody" id="step3Body" hidden>
+      <div class="field"><span class="lab" data-help="mode">Print method</span>
+      <div class="arttypes mlist" id="mode"><button type="button" data-v="sim" aria-pressed="true"><svg viewBox="0 0 48 36" aria-hidden="true"><defs><linearGradient id="gsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b3b8f"/><stop offset=".55" stop-color="#e2557a"/><stop offset="1" stop-color="#f6b13a"/></linearGradient><radialGradient id="gsun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff3c4"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient></defs><rect width="48" height="36" fill="url(#gsky)"/><circle cx="24" cy="26" r="12" fill="url(#gsun)"/><path d="M0 36 14 20l8 8 8-10 18 18Z" fill="#2c1f3d"/></svg><span>Simulated process<small>Photos, gradients, paintings</small></span></button><button type="button" data-v="spot" aria-pressed="false"><svg viewBox="0 0 48 36" aria-hidden="true"><rect width="48" height="36" fill="#f4f1ea"/><circle cx="17" cy="16" r="10" fill="#d62b2b"/><rect x="24" y="9" width="17" height="17" fill="#1d3f95"/><rect x="7" y="29" width="34" height="3" fill="#111"/></svg><span>Spot colors<small>Logos and flat art</small></span></button><button type="button" data-v="cmyk" aria-pressed="false"><svg viewBox="0 0 48 36" aria-hidden="true"><rect width="48" height="36" fill="#fff"/><circle cx="17" cy="14" r="9" fill="#00a3e0"/><circle cx="29" cy="14" r="9" fill="#e5007e" fill-opacity=".85"/><circle cx="23" cy="22" r="9" fill="#ffe500" fill-opacity=".85"/><rect x="35" y="25" width="9" height="7" fill="#1d1d1b"/></svg><span>CMYK<small>Photos on light shirts</small></span></button><button type="button" data-v="tone" aria-pressed="false"><svg viewBox="0 0 48 36" aria-hidden="true"><defs><linearGradient id="gtone" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1e2a55"/><stop offset=".55" stop-color="#b8862a"/><stop offset="1" stop-color="#f3e6c4"/></linearGradient></defs><rect width="48" height="36" fill="url(#gtone)"/><circle cx="14" cy="14" r="6" fill="#1e2a55" opacity=".9"/></svg><span>1–3 colors<small>Grayscale, duotone, tritone</small></span></button><button type="button" data-v="index" aria-pressed="false"><svg viewBox="0 0 48 36" aria-hidden="true" shape-rendering="crispEdges"><rect x="0" y="0" width="6" height="6" fill="#2b2d42"/><rect x="6" y="0" width="6" height="6" fill="#2b2d42"/><rect x="12" y="0" width="6" height="6" fill="#ef8354"/><rect x="18" y="0" width="6" height="6" fill="#ef8354"/><rect x="24" y="0" width="6" height="6" fill="#f7c548"/><rect x="30" y="0" width="6" height="6" fill="#f7c548"/><rect x="36" y="0" width="6" height="6" fill="#f7c548"/><rect x="42" y="0" width="6" height="6" fill="#4f7cac"/><rect x="0" y="6" width="6" height="6" fill="#2b2d42"/><rect x="6" y="6" width="6" height="6" fill="#ef8354"/><rect x="12" y="6" width="6" height="6" fill="#ef8354"/><rect x="18" y="6" width="6" height="6" fill="#ef8354"/><rect x="24" y="6" width="6" height="6" fill="#f7c548"/><rect x="30" y="6" width="6" height="6" fill="#4f7cac"/><rect x="36" y="6" width="6" height="6" fill="#f7c548"/><rect x="42" y="6" width="6" height="6" fill="#f7c548"/><rect x="0" y="12" width="6" height="6" fill="#ef8354"/><rect x="6" y="12" width="6" height="6" fill="#f7c548"/><rect x="12" y="12" width="6" height="6" fill="#f7c548"/><rect x="18" y="12" width="6" height="6" fill="#f7c548"/><rect x="24" y="12" width="6" height="6" fill="#4f7cac"/><rect x="30" y="12" width="6" height="6" fill="#f7c548"/><rect x="36" y="12" width="6" height="6" fill="#4f7cac"/><rect x="42" y="12" width="6" height="6" fill="#4f7cac"/><rect x="0" y="18" width="6" height="6" fill="#ef8354"/><rect x="6" y="18" width="6" height="6" fill="#ef8354"/><rect x="12" y="18" width="6" height="6" fill="#f7c548"/><rect x="18" y="18" width="6" height="6" fill="#4f7cac"/><rect x="24" y="18" width="6" height="6" fill="#f7c548"/><rect x="30" y="18" width="6" height="6" fill="#4f7cac"/><rect x="36" y="18" width="6" height="6" fill="#4f7cac"/><rect x="42" y="18" width="6" height="6" fill="#4f7cac"/><rect x="0" y="24" width="6" height="6" fill="#f7c548"/><rect x="6" y="24" width="6" height="6" fill="#ef8354"/><rect x="12" y="24" width="6" height="6" fill="#f7c548"/><rect x="18" y="24" width="6" height="6" fill="#f7c548"/><rect x="24" y="24" width="6" height="6" fill="#4f7cac"/><rect x="30" y="24" width="6" height="6" fill="#4f7cac"/><rect x="36" y="24" width="6" height="6" fill="#4f7cac"/><rect x="42" y="24" width="6" height="6" fill="#bfc0c0"/><rect x="0" y="30" width="6" height="6" fill="#f7c548"/><rect x="6" y="30" width="6" height="6" fill="#f7c548"/><rect x="12" y="30" width="6" height="6" fill="#4f7cac"/><rect x="18" y="30" width="6" height="6" fill="#4f7cac"/><rect x="24" y="30" width="6" height="6" fill="#4f7cac"/><rect x="30" y="30" width="6" height="6" fill="#bfc0c0"/><rect x="36" y="30" width="6" height="6" fill="#bfc0c0"/><rect x="42" y="30" width="6" height="6" fill="#bfc0c0"/></svg><span>Index<small>Pixel and grainy looks</small></span></button></div>
+      <div class="tonepick" id="tonePick" role="group" aria-label="Number of colors" hidden><button type="button" data-n="1" aria-pressed="false">Grayscale</button><button type="button" data-n="2" aria-pressed="true">Duotone</button><button type="button" data-n="3" aria-pressed="false">Tritone</button></div>
+      <span class="small" id="modeHelp">Halftone dots mix a few inks into many colors. Use it for photos, gradients and painted art.</span></div>
+      <div class="field"><label class="lab" for="nInks" data-help="screens">Color screens</label>
+        <div class="scrrow"><div class="stepper sp narrow"><button type="button" id="inkMinus" aria-label="One screen fewer">−</button><input type="number" id="nInks" min="1" max="12" value="6"><button type="button" id="inkPlus" aria-label="One screen more">+</button></div><button class="pri autobtn" id="auto" type="button" aria-pressed="false">Auto</button></div></div>
+      <button type="button" class="sepbtn" id="run">Separate</button>
+    <div class="notice" id="notice"><div class="nrow"><div id="status" class="small statusline" role="status"></div><button type="button" class="awtog" id="awTog" aria-expanded="false" aria-controls="awBody" aria-label="Why Auto chose this" title="Why Auto chose this" hidden>[+]</button></div><div class="awbody" id="awBody" hidden></div><p class="small" id="autoNote" hidden></p><div class="accentnote fewernote" id="fewerNote" hidden><span id="fewerText"></span><div class="fewerbtns" id="fewerBtns"></div></div><div class="small" id="dropNote" hidden></div><div class="accentnote" id="accentNote" hidden><span id="accentText"></span><button type="button" id="accentAdd"></button></div><div class="accentnote" id="lineNote" hidden><span id="lineText"></span><button type="button" id="lineAdd"></button></div></div>
+    <div class="cardsbox" id="cardsBox" hidden>
+      <div class="panelhead"><span class="panelab" data-help="order">Screens · print order</span><button type="button" class="addinkbtn" id="addInk" aria-haspopup="dialog">+ Add ink</button></div>
+      <div id="scrList" class="cards" role="list" aria-label="Screens in print order. Drag a card by its grip to change the order."></div>
+      <p class="small" id="scrNote"></p>
+    </div>
+      <button type="button" class="next" data-next="4">Next: Export →</button>
+    </div>
+  </section>
+  <section class="sstep" id="step4" data-step="4" aria-labelledby="sth4">
+    <div class="sthead"><button type="button" class="stbtn" id="step4Btn" aria-expanded="false" aria-controls="step4Body"><span class="badge" id="step4Badge">4</span><span class="stt"><span class="sttitle" id="sth4">Export</span><span class="stsum" id="step4Sum"></span></span></button><span class="hw" data-help="step4"></span><span class="stact" aria-hidden="true" id="step4Act">Open</span></div>
+    <div class="stbody" id="step4Body" hidden>
+      <div class="two">
+        <div class="field"><label class="lab" for="shirts" data-help="shirts">Prints in run</label><input type="number" id="shirts" min="1" max="100000" value="100"></div>
+        <div class="field"><label class="lab" for="mirror" data-help="mirror">Films read</label><select id="mirror"><option value="right">Right reading</option><option value="mirror">Mirrored</option></select></div>
+      </div>
+      <div class="two" data-later>
+        <div class="field"><label class="lab" for="setupMin" data-help="pressTime">Setup, min</label><input type="number" id="setupMin" min="0" max="240" step="0.5" aria-label="Setup minutes for each screen"></div>
+        <div class="field"><label class="lab" for="perHour">Prints an hour</label><input type="number" id="perHour" min="1" max="3000" step="10"></div>
+      </div>
+      <p class="small" id="ptLine" role="status" data-later></p>
+      <div class="row"><span class="lab" data-help="files">Files</span>
+        <label class="chk"><input type="checkbox" id="fPDF" checked> PDF</label><label class="chk"><input type="checkbox" id="fTIF" checked> TIFF</label>
+        <label class="chk"><input type="checkbox" id="fPNG"> PNG</label><label class="chk"><input type="checkbox" id="fEPS"> EPS</label><label class="chk"><input type="checkbox" id="fSVG" checked> SVG (spot)</label></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="fPSD" checked> Include a Photoshop file</label><label class="chk"><input type="checkbox" id="fPSDprev"> Also a preview with the art</label></div>
+      <div class="row" data-later><label class="chk"><input type="checkbox" id="fDCS"> <span class="lab" data-help="dcs">DCS 2.0 file for the RIP</span></label></div>
+      <div class="row"><button class="pri big" type="button" id="export">Download films</button></div>
+      <div id="expStatus" class="small statusline" role="status"></div>
+      <div class="row"><button type="button" id="exportFolder">Save into a folder</button></div>
+      <p class="small">You get one film for each screen in print order, an ink mix sheet, a job sheet and a Photoshop file.<span data-later> Check DCS 2.0 to also get every screen in one file for AccuRIP and other RIPs.</span></p>
+    </div>
+  </section>
+  <div class="stepfoot"><button type="button" id="shopOpen" aria-haspopup="dialog">Shop setup</button><button type="button" id="helpOpen" aria-haspopup="dialog">? Help</button></div>
+</aside>
+
+<main class="pane work" id="paneStage" aria-label="Workspace">
+  <div class="viewbar" id="viewBar">
+    <div class="seg" id="view" role="group" aria-label="View"><button type="button" data-v="orig" aria-pressed="false">Art</button><button type="button" data-v="cmp" aria-pressed="false">Compare</button><button type="button" data-v="film" aria-pressed="true">Print</button><button type="button" data-v="press" aria-pressed="false" data-later>Press</button><button type="button" data-v="stack" aria-pressed="false" data-later>Stack</button></div>
+    <label class="chk tog"><input type="checkbox" id="diffT"> <span class="lab">Differences</span></label>
+    <span class="hw" data-help="views"></span>
+  </div>
+  <div class="square" id="square">
+    <div class="canvasbox"><canvas id="view0" width="600" height="600"></canvas></div>
+    <div class="busymask" id="busyMask" role="status" aria-live="polite" hidden><span class="busylogo" id="busyLogo" aria-hidden="true"></span><span class="busytext" id="busyText">Separating…</span></div>
+    <label class="drop" id="drop" for="file" tabindex="0" aria-label="Drop your art here, or tap to select a file"><div class="dropempty" id="dropEmpty"><svg class="upicon" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="9" width="38" height="30" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="19" r="3.5" fill="currentColor"/><path d="M7 37l11-11 7 7 6-6 10 10" fill="none" stroke="currentColor" stroke-width="2"/><rect x="31" y="1" width="16" height="16" fill="var(--surface)"/><path d="M39 15V4M34 9l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.4"/></svg><b>Drop your art here</b><span>or click to select a PNG, JPG or WebP file</span><span class="small">Your art stays on this device. It is not uploaded.</span><button type="button" class="linkbtn droptry" id="dropSample">Try the sample design</button></div></label>
+  </div>
+  <input type="file" id="file" class="vh" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-hidden="true">
+  <div id="zoomBox" hidden><div class="zoomline" id="zoomSteps" role="group" aria-label="Zoom"><button type="button" class="zstep" id="zStep" aria-label="Fit. Each tap zooms in one step.">Fit</button><div class="zoomrow"><input type="range" id="zoomSlider" min="-2" max="3" step="any" value="-2" aria-label="Zoom, from Fit to 800%"><output id="zoomPct" class="ztip" for="zoomSlider">Fit</output></div><button type="button" class="z100b" id="z100">100%</button></div><span class="small" id="inspWhere"></span></div>
+  <div class="pstep" id="pressBar" hidden><button type="button" id="psPrev" aria-label="Previous screen">◀</button><span id="psText" role="status" aria-live="polite"></span><button type="button" id="psNext" aria-label="Next screen">▶</button><span class="hw" data-help="pressSteps"></span></div>
+  <div id="chipBar" class="chipbar" role="list" aria-label="Screens in print order: tap one to see its film, drag to change the order" hidden></div>
+
+  <p class="note" id="viewNote"></p>
+  <section class="rating" id="rating" aria-label="Print rating">
+    <button type="button" class="drate" id="dRate" aria-expanded="false" aria-controls="rating"><b id="drNum">–</b><span class="stars" aria-hidden="true"><i>★★★★★</i><i class="on" id="drFill">★★★★★</i></span><span class="drfacts" id="drFacts">No rating yet</span><span class="mrchk" id="drChk"></span><span class="mrarr" aria-hidden="true">▾</span></button>
+    <div class="rmain"><span class="lab" data-help="verdict">Print rating</span><div class="rnum"><b id="rStars">–</b><span>/ 5</span></div><span class="stars" id="rStarRow" role="img" aria-label="No rating yet"><i>★★★★★</i><i class="on" id="rFill">★★★★★</i></span><button type="button" class="rclose" id="rClose">Close ▾</button></div>
+    <div class="rdata">
+      <div class="rfacts" id="rFacts"></div>
+      <p class="rwhy" id="rWhy">No art yet. The rating shows here after the separation.</p>
+      <div id="preflight" class="checks" role="status" hidden></div>
+      <span class="lab rnumlab" data-help="numbers">Numbers</span>
+    <div class="stats">
+      <div><span class="lab">Screens</span><b id="sScreens">–</b></div>
+      <div><span class="lab" data-help="deltaE">Mean ΔE00</span><b id="sMean">–</b></div>
+      <div title="Scored with the simple layering model we use for competitors (random dot overlap, full-strength ink, no dot gain). It disagrees with our model on purpose."><span class="lab" data-help="neutral">Neutral ΔE00</span><b id="sNeutral">–</b></div>
+      <div><span class="lab" data-help="cmc">Within ΔE CMC 2</span><b id="sCmc">–</b></div>
+      <div><span class="lab" data-help="drift">With press drift</span><b id="sDrift">–</b></div>
+    </div>
+    </div>
+  </section>
+  <div class="hiddenbits" hidden>
+    <div class="verdict" id="verdict"><b id="verdictWord"></b><div id="verdictText"></div></div>
+  </div>
+</main>
+
+<aside class="pane side" id="paneSide" aria-label="Advanced">
+  <div class="panelhead"><span class="panelab" id="sideTitle">Advanced</span><button type="button" class="ibtn" id="sideClose" aria-label="Close Advanced">×</button></div>
+  <div class="sidesec" data-for="1">
+    <section class="tips"><span class="panelab">Good art</span><ul><li>PNG, JPG or WebP.</li><li>A PNG with a transparent background lets the garment show through.</li><li>Use 300 pixels for each inch of print width.</li></ul></section>
+    <div class="panelab" data-help="adjust">Adjust the art</div>
+      <div class="two adjgrid">
+        <div class="field"><label class="lab" for="adjBright" data-help="adjTone">Brightness <span id="adjBrightV"></span></label><input type="range" id="adjBright" min="-100" max="100" step="1" value="0"></div>
+        <div class="field"><label class="lab" for="adjContrast" data-help="adjTone">Contrast <span id="adjContrastV"></span></label><input type="range" id="adjContrast" min="-100" max="100" step="1" value="0"></div>
+        <div class="field"><label class="lab" for="adjSat" data-help="adjColor">Saturation <span id="adjSatV"></span></label><input type="range" id="adjSat" min="-100" max="100" step="1" value="0"></div>
+        <div class="field"><label class="lab" for="adjVib" data-help="adjColor">Vibrance <span id="adjVibV"></span></label><input type="range" id="adjVib" min="-100" max="100" step="1" value="0"></div>
+        <div class="field"><label class="lab" for="adjBlack" data-help="adjLevels">Black point <span id="adjBlackV"></span></label><input type="range" id="adjBlack" min="0" max="128" step="1" value="0"></div>
+        <div class="field"><label class="lab" for="adjWhite" data-help="adjLevels">White point <span id="adjWhiteV"></span></label><input type="range" id="adjWhite" min="128" max="255" step="1" value="255"></div>
+        <div class="field"><label class="lab" for="adjHue" data-help="adjColor">Hue <span id="adjHueV"></span></label><input type="range" id="adjHue" min="-180" max="180" step="1" value="0"></div>
+        <div class="field"><label class="lab" for="adjSharpen" data-help="adjSharpen">Sharpen <span id="adjSharpenV"></span></label><input type="range" id="adjSharpen" min="0" max="100" step="1" value="0"></div>
+      </div>
+      <div class="row"><button type="button" id="adjBefore" aria-pressed="false">Show before</button><button type="button" id="adjReset">Reset</button></div>
+      <div class="small" id="adjNote"></div>
+    <div class="panelab" data-help="fix">Fix the art</div>
+      <div class="row">
+        <button type="button" id="bgRemove">Remove background</button>
+        <button type="button" id="upscale">Upscale 2×</button>
+        <button type="button" id="denoise">Reduce noise</button>
+        <button type="button" id="selectMode" aria-pressed="false">Select region</button>
+        <button type="button" id="undoArt" disabled>Undo</button>
+      </div>
+      <div class="row" id="selActs" hidden>
+        <span class="small">Click the art to add to the selection, Shift-click to subtract.</span>
+        <button type="button" id="selKnock">Remove from print</button><button type="button" id="selKeep">Keep only this</button><button type="button" id="selClear">Clear</button>
+      </div>
+      <div class="small" id="prepStatus"></div>
+    <div class="field"><label class="lab" for="intent" data-help="intent">Color profile conversion</label>
+        <select id="intent"><option value="relative">Relative colorimetric + black point</option><option value="perceptual">Perceptual</option></select></div>
+  </div>
+  <div class="sidesec" data-for="2">
+    <div class="autodef" data-grp="2"><button type="button" class="autobtn" data-auto="2">Auto</button><button type="button" data-def="2">Default</button></div>
+    <section aria-labelledby="hPress">
+      <h2 id="hPress">Press</h2>
+      <div class="two wh">
+        <div class="field"><label class="lab" for="lpi" data-help="lpi">LPI</label><div class="stepper sp"><button type="button" class="stp" data-for="lpi" data-d="-5" aria-label="LPI smaller">−</button><input type="number" id="lpi" min="20" max="85" step="1" value="45"><button type="button" class="stp" data-for="lpi" data-d="5" aria-label="LPI larger">+</button></div></div>
+        <div class="field"><label class="lab" for="press" data-help="press">Press</label><select id="press"><option value="manual">Manual</option><option value="automatic">Auto</option></select></div>
+      </div>
+    </section>
+    <section aria-labelledby="hFilmAdv">
+      <h2 id="hFilmAdv">Film settings</h2>
+      <div class="fields">
+        <div class="field"><label class="lab" for="dpi" data-help="dpi">Film DPI</label><input type="number" id="dpi" min="150" max="1440" step="10" value="400"></div>
+        <div class="field"><label class="lab" for="screening" data-help="screening">Screening</label><select id="screening" aria-describedby="lockNote"><option value="same">AM, one angle (standard)</option><option value="lock">AM, interlocked (2 inks per spot)</option><option value="rotated">AM, rotated angles</option><option value="fm">Index (FM square pixel)</option></select></div>
+        <div class="small locknote" id="lockNote" hidden>Interlocked: each spot prints at most two inks side by side. The second ink fills the holes of the first, like tiles, so no ink hides under another and the base cannot show through. It needs tight registration, and its blends can still step in skin tones and sunsets, so Auto does not choose it yet. Choose it by hand and print a test first.</div>
+        <div class="field"><label class="lab" for="angle" data-help="angle">Angle °</label><input type="number" id="angle" min="0" max="90" step="0.5" value="22.5"></div>
+        <div class="field" data-later><label class="lab" for="dotShape" data-help="dotShape">Dot shape</label><select id="dotShape"><option value="round">Round</option><option value="ellipse">Ellipse</option><option value="square">Square</option><option value="line">Line</option></select></div>
+        <div class="field"><label class="lab" for="gain" data-help="gain">Dot gain 50%</label><input type="number" id="gain" min="0" max="50" value="22"></div>
+        <div class="field"><label class="lab" for="minDot" data-help="minDot">Min dot %</label><input type="number" id="minDot" min="0" max="20" value="6"></div>
+        <div class="field"><span class="lab" aria-hidden="true">&nbsp;</span><label class="chk"><input type="checkbox" id="scatter" checked> <span class="lab" data-help="scatter">Scatter small dots</span></label></div>
+        <div class="field"><label class="lab" for="maxDot" data-help="maxDot">Max dot %</label><input type="number" id="maxDot" min="80" max="100" value="92"></div>
+        <div class="field"><label class="lab" for="stackLimit" data-help="stackLimit">Stack limit %</label><input type="number" id="stackLimit" min="240" max="280" step="10" value="240"></div>
+        <div class="field"><label class="lab" for="indexDpi" data-help="indexDpi">Index DPI</label><input type="number" id="indexDpi" min="100" max="400" step="5" value="200"></div>
+      </div>
+
+    </section>
+  </div>
+  <div class="sidesec" data-for="3">
+    <div class="autodef" data-grp="3"><button type="button" class="autobtn" data-auto="3">Auto</button><button type="button" data-def="3">Default</button></div>
+    <section aria-labelledby="hTune">
+      <h2 id="hTune">Separation</h2>
+      <div class="field"><label class="lab" for="palSrc" data-help="palSrc">Choose inks from</label>
+        <select id="palSrc"><option value="library">My ink library (inks on the shelf)</option><option value="art">The artwork (colors to mix)</option></select></div>
+      <div class="two">
+        <div class="field"><label class="lab" for="smooth" data-help="smooth">Tonal smoothness <span id="smoothV"></span></label><input type="range" id="smooth" min="0" max="1" step="0.05" value="0.1"></div>
+        <div class="field"><label class="lab" for="rare" data-help="rare">Ignore rare colors <span id="rareV"></span></label><input type="range" id="rare" min="0" max="0.01" step="0.0005" value="0.0005"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label class="lab" for="forceWhite" data-help="forceWhite">Highlight white</label><select id="forceWhite"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select></div>
+        <div class="field"><span class="lab" aria-hidden="true">&nbsp;</span><label class="chk"><input type="checkbox" id="cleanSpot" checked> <span class="lab" data-help="cleanSpot">Clean spot edges</span></label></div>
+        <div class="field"><span class="lab" aria-hidden="true">&nbsp;</span><label class="chk"><input type="checkbox" id="solidDetail" checked> <span class="lab" data-help="solidDetail">Solid line work</span></label></div>
+      </div>
+      <div class="three">
+        <div class="field"><label class="lab" for="ubMode" data-help="ubMode">Underbase</label><select id="ubMode"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select></div>
+        <div class="field"><label class="lab" for="ubStrength" data-help="ubStrength">Strength %</label><input type="number" id="ubStrength" min="40" max="100" value="100"></div>
+        <div class="field"><label class="lab" for="choke" data-help="choke">Choke, mm</label><input type="number" id="choke" min="0" max="1" step="0.05" value="0.2"></div>
+        <div class="field"><label class="lab" for="trap" data-help="trap">Trap, mm</label><input type="number" id="trap" min="0" max="1" step="0.05" value="0.4"></div>
+      </div>
+      <div class="field"><label class="lab" for="opacity" data-help="opacity">Ink opacity on bare shirt <span id="opacityV"></span></label><input type="range" id="opacity" min="0.3" max="1" step="0.05" value="0.55"></div>
+    </section>
+  </div>
+  <div class="sidesec" data-for="4">
+    <p class="note" id="meshNote"></p>
+  </div>
+</aside>
+<button type="button" class="sideopen" id="sideOpen" hidden>Advanced</button>
+</div>
+
+<nav class="mnav" id="mNav" aria-label="Step navigation"><button type="button" class="mrrow" id="mRate" aria-expanded="false" aria-controls="rating"><b id="mrNum">–</b><span class="stars" aria-hidden="true"><i>★★★★★</i><i class="on" id="mrFill">★★★★★</i></span><span class="mrde" id="mrDe">No rating yet</span><span class="mrchk" id="mrChk"></span><span class="mrbusy" aria-hidden="true"><span class="busylogo sm" id="busyLogoSm"></span><span id="mrBusyText"></span></span><span class="mrarr" aria-hidden="true">▾</span></button><div class="mprog" id="mProg" role="progressbar" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0"><i></i><i></i><i></i><i></i></div><div class="mbtns"><button type="button" id="mBack">← Back</button><button type="button" class="pri" id="mNext">Next →</button></div></nav>
+
+<dialog id="addInkDlg" class="addink" aria-labelledby="hAddInk">
+  <div class="row between"><h2 id="hAddInk">Add ink</h2><button type="button" class="dclose" data-close="addInkDlg">Close</button></div>
+  <div class="seg aitabs" id="aiTabs" role="group" aria-label="Where the ink comes from"><button type="button" data-t="art" aria-pressed="true">From the art</button><button type="button" data-t="lib" aria-pressed="false">My inks</button><button type="button" data-t="custom" aria-pressed="false">Custom</button></div>
+  <div class="aipane" id="aiLib" hidden><input type="search" id="aiQ" placeholder="Search: name or code (e.g. 7034, orange)" aria-label="Search my inks"><p class="small">Your shop's ink library. Grey: already a screen. Tap to choose one or more.</p><div class="aigrid" id="aiGrid"></div><button type="button" class="aiedit" id="aiEdit">Edit my inks</button></div>
+  <div class="aipane" id="aiArt"><p class="small">Colors in the art that no screen prints well yet, biggest area first, with the closest ink on your shelf.</p><div class="aimiss" id="aiMiss"></div></div>
+  <div class="aipane" id="aiCustom" hidden><label class="lab" for="aiColor">Pick a color</label><input type="color" id="aiColor" value="#ef7d2e"><p class="small" id="aiNear"></p></div>
+  <div class="aifoot"><button type="button" data-close="addInkDlg">Cancel</button><button type="button" class="pri" id="aiAdd" disabled>Add</button></div>
+</dialog>
+<dialog id="shopPanel" aria-labelledby="hShop">
+  <div class="row between"><h2 id="hShop">Shop setup</h2><button type="button" class="dclose" data-close="shopPanel">Close</button></div>
+  <p class="small">Set these one time for your shop. They apply to every job.</p>
+  <section aria-labelledby="hLib">
+      <div class="row between"><h2 id="hLib" data-help="library">Ink library</h2><span class="pill" id="libPill"></span></div>
+      <p class="note" id="libNote"></p>
+      <div class="row">
+        <button type="button" id="libImport">Import CSV</button><input type="file" id="libFile" accept=".csv,.txt,text/csv" hidden>
+        <button type="button" id="libExport">Export CSV</button>
+        <select id="libPreset" aria-label="Starting ink set"><option value="">Start from…</option><option value="generic">Generic stock shades (24)</option><option value="simkit">Standard sim-process kit (8)</option><option value="simkitSkin">Sim kit + skin tones (11)</option><option value="wilflexRio">Wilflex Epic Rio (33, approximate)</option><option value="fnInk">FN-INK stock (15, estimate)</option></select>
+      </div>
+      <p class="note small">Brand names are trademarks of their owners; ADN is not affiliated with Avient, Wilflex or FN-INK, and their colors here are approximate. No ink maker publishes measured color values, so every starting set here is approximate. Export it, measure your cured drawdowns (D65/10°) and import <code>name,L,a,b,system,code</code>. In tests the generic 24 shades beat the 8-ink kit until inks are measured.</p>
+    </section>
+  <section aria-labelledby="hCal">
+      <div class="row between"><h2 id="hCal" data-help="calib">Calibration</h2><span class="pill" id="calPill">Not calibrated</span></div>
+      <p class="note">Print the chart with your screens, inks, mesh and cure, measure each patch, then import the readings. Separation Table fits its print model, dot gain, ink opacity and dot overlap to your press.</p>
+      <div class="row"><button type="button" id="calChart">Export chart films</button><button type="button" id="calImport">Import readings</button><input type="file" id="calFile" accept=".csv,.txt,text/csv" hidden><button type="button" id="calClear">Clear</button></div>
+      <p class="note small" id="calNote">Readings CSV: <code>ink,tint,L,a,b</code>, tints 0 to 100 in steps of 10. Tint 0 is the bare substrate the ink sits on.</p>
+    </section>
+  <section aria-labelledby="hProf">
+      <div class="row between" data-later><h2 id="hProf" data-help="profiles">Shop and press profiles</h2><span class="pill" id="profPill">No profile</span></div>
+      <p class="note" id="profNote" role="status" data-later></p>
+      <div class="row" data-later><select id="profSel" aria-label="Saved profiles"></select><button type="button" id="profLoad">Use profile</button></div>
+      <div class="row" data-later><input type="text" id="profName" maxlength="60" placeholder="Name, e.g. Auto press, 230 mesh" aria-label="Profile name"><button type="button" class="pri" id="profSave">Save as new</button></div>
+      <div class="row" data-later><button type="button" id="profUpdate">Save changes</button><button type="button" id="profRename">Rename</button><button type="button" id="profDelete">Delete</button></div>
+      <div class="row" data-later><button type="button" id="profExport">Export JSON</button><button type="button" id="profImport">Import JSON</button><input type="file" id="profFile" accept=".json,application/json" hidden></div>
+      <div class="row"><span class="lab" data-help="mesh">Mesh</span></div>
+      <div class="three">
+        <div class="field"><label class="lab" for="meshBase">Underbase</label><select id="meshBase"></select></div>
+        <div class="field"><label class="lab" for="meshColor">Colors</label><select id="meshColor"></select></div>
+        <div class="field"><label class="lab" for="meshWhite">Highlight white</label><select id="meshWhite"></select></div>
+      </div>
+      <p class="note small" id="profSrc" data-later hidden></p>
+      <div class="field" data-later><label class="lab" for="profDefault" data-help="profDefault">New jobs start with</label><select id="profDefault"></select></div>
+      <div class="row" data-later><span class="lab" data-help="limits">Check limits</span></div>
+      <div class="two" data-later>
+        <div class="field"><label class="lab" for="minPpi">Lowest resolution, ppi</label><input type="number" id="minPpi" min="100" max="600" step="10" value="200"></div>
+        <div class="field"><label class="lab" for="offCentreIn">Off centre, in</label><input type="number" id="offCentreIn" min="0.1" max="3" step="0.1" value="0.5"></div>
+        <div class="field"><label class="lab" for="manualMaxLpi">Highest LPI, manual press</label><input type="number" id="manualMaxLpi" min="35" max="85" step="1" value="55"></div>
+        <div class="field"><label class="lab" for="smallScreenPct">Small screen under, %</label><input type="number" id="smallScreenPct" min="0" max="5" step="0.1" value="0.5"></div>
+      </div>
+      <p class="note small" data-later>A profile keeps the mesh above, the check limits, the film formats (step 4) and, from the job settings, the press, LPI, angle, film DPI, dot gain, smallest and largest dot, dot shape and the calibration. Profiles stay in this browser. When you are signed in to ADN, they also follow your account.</p>
+    </section>
+  <section aria-labelledby="hUnits" data-later>
+      <div class="row between"><h2 id="hUnits" data-help="units">Units</h2></div>
+      <div class="field"><label class="lab" for="units">Print size in</label><select id="units"><option value="in">Inches</option><option value="cm">Centimetres</option></select></div>
+    </section>
+  <section aria-labelledby="hTest" data-later>
+      <div class="row between"><h2 id="hTest" data-help="testFilm">Test films</h2></div>
+      <div class="two">
+        <div class="field"><label class="lab" for="tfParam">Step</label><select id="tfParam"><option value="lpi">LPI</option><option value="angle">Angle</option><option value="gain">Dot gain</option><option value="minDot">Smallest dot</option></select></div>
+        <div class="field"><label class="lab" for="tfValues">Values</label><input type="text" id="tfValues" value="35, 45, 55, 65" inputmode="decimal" aria-describedby="tfNote"></div>
+      </div>
+      <div class="row"><button type="button" class="pri" id="tfMake">Download test film (PDF)</button></div>
+      <p class="note small" id="tfNote" role="status">One film, one row of tint patches for each value. The other settings come from the job.</p>
+    </section>
+  <section aria-labelledby="hSizes">
+      <div class="row between"><h2 id="hSizes" data-help="sizes">Platen, film and screen</h2></div>
+      <p class="note">The checks tell you when a print is larger than these. Select Custom to type your own size.</p>
+      <div class="field szfield"><label class="lab" for="szPlaten">Platen</label><select id="szPlaten" data-kind="platen"></select>
+        <div class="two" id="szPlatenCustom" hidden><div class="field"><label class="lab" for="szPlatenW">Width, in</label><input type="number" id="szPlatenW" min="1" max="40" step="0.25"></div><div class="field"><label class="lab" for="szPlatenH">Height, in</label><input type="number" id="szPlatenH" min="1" max="40" step="0.25"></div></div></div>
+      <div class="field szfield"><label class="lab" for="szFilm">Film sheet</label><select id="szFilm" data-kind="film"></select>
+        <div class="two" id="szFilmCustom" hidden><div class="field"><label class="lab" for="szFilmW">Width, in</label><input type="number" id="szFilmW" min="1" max="40" step="0.25"></div><div class="field"><label class="lab" for="szFilmH">Height, in</label><input type="number" id="szFilmH" min="1" max="40" step="0.25"></div></div></div>
+      <div class="field szfield"><label class="lab" for="szScreen">Screen image area</label><select id="szScreen" data-kind="screen"></select>
+        <div class="two" id="szScreenCustom" hidden><div class="field"><label class="lab" for="szScreenW">Width, in</label><input type="number" id="szScreenW" min="1" max="40" step="0.25"></div><div class="field"><label class="lab" for="szScreenH">Height, in</label><input type="number" id="szScreenH" min="1" max="40" step="0.25"></div></div></div>
+      <p class="note small" id="sizeNote" role="status"></p>
+    </section>
+  <section aria-labelledby="hTgt">
+      <div class="row between"><h2 id="hTgt" data-help="targets">Color targets</h2><button type="button" id="addTarget">Add target</button></div>
+      <p class="note">Record each color the creator specified and check it against the inks. Enter Lab from the creator's own licensed reference or from a measured physical standard.</p>
+      <div class="tblwrap"><table id="targets"><thead><tr><th>Requested color</th><th>L</th><th>a</th><th>b</th><th>Tolerance</th><th>Closest ink</th><th>ΔE CMC</th><th>ΔE00</th><th></th></tr></thead><tbody></tbody></table></div>
+      <p class="note small">Color names you type are recorded as you wrote them. This tool ships no PANTONE® color data and is not affiliated with Pantone LLC; PANTONE® is a trademark of Pantone LLC. Matches are approximate: verify with a printed and measured drawdown before production.</p>
+    </section>
+  <section aria-labelledby="hRep" data-later>
+  <div class="impbox" id="reportBox"><h2 id="hRep" data-help="report">Report a problem</h2>
+    <p class="small" id="reportNote" role="status"></p>
+    <div class="row"><button type="button" id="reportCopy">Copy a problem report</button><button type="button" id="reportClear">Clear the error log</button></div>
+    <textarea id="reportText" readonly rows="8" aria-label="Problem report" hidden></textarea></div>
+  </section>
+</dialog>
+<dialog id="helpPanel" aria-labelledby="hHelp">
+  <div class="row between"><h2 id="hHelp">Help</h2><button type="button" id="helpClose" aria-label="Close help">Close</button></div>
+  <p class="small" id="helpAbout" hidden><a href="#about">What the Separation Table is, and what it costs</a></p>
+  <input type="search" id="helpQ" placeholder="Search: mesh, underbase, Pantone, RIP…" aria-label="Search help">
+  <div id="helpList"></div>
+  <p class="small" id="helpNone" hidden>Nothing found. Try a shorter word, like "mesh" or "white".</p>
+  <p class="small"><span id="helpVersion"></span> · <a href="CHANGELOG.md" target="_blank" rel="noopener" id="helpChanges">Changelog</a></p>
+</dialog>
+<script type="module" src="app.js"></script>

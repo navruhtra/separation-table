@@ -1,0 +1,297 @@
+{
+ "label": "0.1.0",
+ "note": "first public tree; synthetic images only",
+ "commit": "uncommitted",
+ "date": "2026-11-17",
+ "node": "v22.23.2",
+ "cpu": "Intel(R) Xeon(R) W-1270P CPU @ 3.80GHz",
+ "load": 2.67,
+ "truth": {
+  "close": {
+   "edges": 5.213,
+   "solid": 3.15,
+   "glow": 12.987,
+   "edgeOff": 21.58
+  },
+  "arm": {
+   "edges": 2.825,
+   "solid": 1.835,
+   "glow": 9.094,
+   "edgeOff": 5.72
+  },
+  "offset": 1.077,
+  "specks": 6801,
+  "separationS": 2.5
+ },
+ "bench": {
+  "summary": {
+   "cases": 36,
+   "robust": 2.597,
+   "robustP95": 7.631,
+   "adnMean": 2.093,
+   "adnP95": 6.583,
+   "neutralMean": 5.055,
+   "filtered": 2.088,
+   "thin": 3.925,
+   "rough": 7.769,
+   "steps": 7.011,
+   "screens": 5.583,
+   "stack": 186.75,
+   "separationS": 132.9
+  },
+  "cases": {
+   "01-sunset-sim-process library": {
+    "robust": 1.25,
+    "adnMean": 0.8,
+    "steps": 5.88,
+    "screens": 7,
+    "inks": "Purple/Teal/Pink/Scarlet/Golden Yellow/White"
+   },
+   "01-sunset-sim-process art": {
+    "robust": 1.17,
+    "adnMean": 1.12,
+    "steps": 5.49,
+    "screens": 7,
+    "inks": "Navy mix/Royal/Scarlet/Magenta mix/Lemon Yellow mix/White"
+   },
+   "02-spot-logo-transparent library": {
+    "robust": 3.5,
+    "adnMean": 3.5,
+    "steps": 0.84,
+    "screens": 3,
+    "inks": "Royal/Red/Golden Yellow"
+   },
+   "02-spot-logo-transparent art": {
+    "robust": 0.28,
+    "adnMean": 0.28,
+    "steps": 0.93,
+    "screens": 3,
+    "inks": "Royal/Red/Golden Yellow"
+   },
+   "03-portrait-skin-tones library": {
+    "robust": 3.18,
+    "adnMean": 1.76,
+    "steps": 19.58,
+    "screens": 6,
+    "inks": "Royal/Kelly Green/Orange/Flesh/White"
+   },
+   "03-portrait-skin-tones art": {
+    "robust": 2.45,
+    "adnMean": 2.12,
+    "steps": 11.55,
+    "screens": 7,
+    "inks": "Brown mix/Maroon mix/Royal mix/Orange mix/Tan mix/Flesh"
+   },
+   "04-hue-wheel-black library": {
+    "robust": 9.49,
+    "adnMean": 9.21,
+    "steps": 2.17,
+    "screens": 8,
+    "inks": "Royal/Magenta/Scarlet/Turquoise/Light Blue/Lime/Lemon Yellow"
+   },
+   "04-hue-wheel-black art": {
+    "robust": 4.69,
+    "adnMean": 3.33,
+    "steps": 1.34,
+    "screens": 7,
+    "inks": "Royal mix/Scarlet mix/Lime mix/Pink mix/Turquoise mix/White"
+   },
+   "05-neutral-ramps-black library": {
+    "robust": 1.36,
+    "adnMean": 0.72,
+    "steps": 18.07,
+    "screens": 4,
+    "inks": "Grey/Tan/White"
+   },
+   "05-neutral-ramps-black art": {
+    "robust": 1.65,
+    "adnMean": 0.77,
+    "steps": 18.73,
+    "screens": 6,
+    "inks": "Black mix/Tan mix/White mix/White mix/White"
+   },
+   "06-fine-detail-spot-white library": {
+    "robust": 3.48,
+    "adnMean": 3.48,
+    "steps": 2.33,
+    "screens": 4,
+    "inks": "Black/Royal/Red/Kelly Green"
+   },
+   "06-fine-detail-spot-white art": {
+    "robust": 0.27,
+    "adnMean": 0.27,
+    "steps": 1.24,
+    "screens": 4,
+    "inks": "Black/Royal/Red/Kelly Green"
+   },
+   "07-pastels-navy library": {
+    "robust": 2.03,
+    "adnMean": 1.75,
+    "steps": 6.79,
+    "screens": 7,
+    "inks": "Magenta/Pink/Lime/Light Blue/Lemon Yellow/White"
+   },
+   "07-pastels-navy art": {
+    "robust": 1.64,
+    "adnMean": 1.51,
+    "steps": 3.35,
+    "screens": 6,
+    "inks": "Light Blue mix/Pink mix/White mix/White mix/White"
+   },
+   "08-earth-tones-sand library": {
+    "robust": 2.53,
+    "adnMean": 1.21,
+    "steps": 18.85,
+    "screens": 5,
+    "inks": "Black/Brown/Magenta/Kelly Green/Golden Yellow"
+   },
+   "08-earth-tones-sand art": {
+    "robust": 0.58,
+    "adnMean": 0.55,
+    "steps": 5.05,
+    "screens": 5,
+    "inks": "Brown/Forest mix/Tan mix/Tan/Tan mix"
+   },
+   "09-neon-black library": {
+    "robust": 6.55,
+    "adnMean": 6.03,
+    "steps": 6.67,
+    "screens": 6,
+    "inks": "Magenta/Turquoise/Pink/Lemon Yellow/White"
+   },
+   "09-neon-black art": {
+    "robust": 1.08,
+    "adnMean": 0.45,
+    "steps": 5.57,
+    "screens": 6,
+    "inks": "Maroon mix/Pink mix/Turquoise mix/Lime mix/Lemon Yellow"
+   },
+   "10-vintage-3color-heather library": {
+    "robust": 7.15,
+    "adnMean": 7.15,
+    "steps": 0.8,
+    "screens": 4,
+    "inks": "Navy/Red/White"
+   },
+   "10-vintage-3color-heather art": {
+    "robust": 0,
+    "adnMean": 0,
+    "steps": 0,
+    "screens": 4,
+    "inks": "Navy mix/Red/White mix"
+   },
+   "11-skin-grain-black library": {
+    "robust": 0.96,
+    "adnMean": 0.9,
+    "steps": 5.6,
+    "screens": 5,
+    "inks": "Brown/Orange/Flesh/White"
+   },
+   "11-skin-grain-black art": {
+    "robust": 0.85,
+    "adnMean": 0.82,
+    "steps": 2.51,
+    "screens": 5,
+    "inks": "Brown/Brown mix/Tan mix/Flesh"
+   },
+   "12-knockout-red library": {
+    "robust": 0.48,
+    "adnMean": 0.48,
+    "steps": 0,
+    "screens": 3,
+    "inks": "Black/White"
+   },
+   "12-knockout-red art": {
+    "robust": 0,
+    "adnMean": 0,
+    "steps": 0,
+    "screens": 3,
+    "inks": "Black/White"
+   },
+   "13-sky-gradient-black library": {
+    "robust": 2.33,
+    "adnMean": 0.64,
+    "steps": 10.21,
+    "screens": 6,
+    "inks": "Royal/Orange/Lime/Flesh/Lemon Yellow"
+   },
+   "13-sky-gradient-black art": {
+    "robust": 1.62,
+    "adnMean": 1.61,
+    "steps": 9.25,
+    "screens": 6,
+    "inks": "Navy/Navy mix/Brown mix/Tan mix/Flesh mix"
+   },
+   "14-index-blend-black library": {
+    "robust": 2.68,
+    "adnMean": 2.68,
+    "steps": 22.55,
+    "screens": 7,
+    "inks": "Royal/Scarlet/Kelly Green/Light Blue/Golden Yellow/White"
+   },
+   "14-index-blend-black art": {
+    "robust": 0.6,
+    "adnMean": 0.6,
+    "steps": 10.18,
+    "screens": 7,
+    "inks": "Navy mix/Turquoise mix/Scarlet/Flesh mix/White mix/White"
+   },
+   "15-photo-white library": {
+    "robust": 6.97,
+    "adnMean": 6.34,
+    "steps": 2.89,
+    "screens": 6,
+    "inks": "Black/Kelly Green/Turquoise/Orange/Golden Yellow/Magenta"
+   },
+   "15-photo-white art": {
+    "robust": 4.4,
+    "adnMean": 3.77,
+    "steps": 2.07,
+    "screens": 6,
+    "inks": "Forest mix/Orange/Light Blue mix/Golden Yellow/Pink mix/Lime mix"
+   },
+   "16-ink-ramps-black library": {
+    "robust": 4.47,
+    "adnMean": 1.58,
+    "steps": 11.54,
+    "screens": 7,
+    "inks": "Royal/Scarlet/Kelly Green/Lime/Golden Yellow/White"
+   },
+   "16-ink-ramps-black art": {
+    "robust": 3.38,
+    "adnMean": 0.99,
+    "steps": 11.21,
+    "screens": 7,
+    "inks": "Royal/Red/Kelly Green/Orange/Golden Yellow mix/White"
+   },
+   "17-ink-to-ink-black library": {
+    "robust": 3.6,
+    "adnMean": 3.02,
+    "steps": 5.41,
+    "screens": 7,
+    "inks": "Royal/Orange/Light Blue/Red/Lime/White"
+   },
+   "17-ink-to-ink-black art": {
+    "robust": 2.75,
+    "adnMean": 2.48,
+    "steps": 5.6,
+    "screens": 7,
+    "inks": "Royal/Maroon mix/Kelly Green/Orange/Golden Yellow mix/White"
+   },
+   "18-fade-to-shirt-white library": {
+    "robust": 1.75,
+    "adnMean": 1.39,
+    "steps": 9.24,
+    "screens": 5,
+    "inks": "Black/Scarlet/Kelly Green/Royal/Golden Yellow"
+   },
+   "18-fade-to-shirt-white art": {
+    "robust": 2.32,
+    "adnMean": 2.03,
+    "steps": 8.9,
+    "screens": 5,
+    "inks": "Royal/Kelly Green/Golden Yellow/Red/White mix"
+   }
+  }
+ }
+}

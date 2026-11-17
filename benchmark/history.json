@@ -1,0 +1,31 @@
+[
+ {
+  "label": "0.1.0",
+  "note": "first public tree; synthetic images only",
+  "commit": "uncommitted",
+  "date": "2026-11-17",
+  "truth": {
+   "closeEdges": 5.213,
+   "armEdges": 2.825,
+   "armSolid": 1.835,
+   "armGlow": 9.094,
+   "offset": 1.077,
+   "specks": 6801
+  },
+  "bench": {
+   "cases": 36,
+   "robust": 2.597,
+   "robustP95": 7.631,
+   "adnMean": 2.093,
+   "adnP95": 6.583,
+   "neutralMean": 5.055,
+   "filtered": 2.088,
+   "thin": 3.925,
+   "rough": 7.769,
+   "steps": 7.011,
+   "screens": 5.583,
+   "stack": 186.75,
+   "separationS": 132.9
+  }
+ }
+]
