@@ -60,13 +60,13 @@ jobs:
           PORT=$E2E_PORT node scripts/server.cjs & srv=$!
           trap 'kill $srv 2>/dev/null; wait $srv 2>/dev/null || true' EXIT
           for i in $(seq 50); do curl -sf -o /dev/null http://127.0.0.1:$E2E_PORT/ && break; sleep 0.2; done
-          # The run is cut in four parts of about equal length (node tests/e2e.cjs --part K). They run at the same time against
-          # the one server, each with its own browser and its own log.
-          pids=()
+          # The run is cut in four parts of about equal length (node tests/e2e.cjs --part K). They run one after the other,
+          # each with its own browser and its own log: four at the same time load a hosted runner so much that the page
+          # starts later than its 8-second start-up guard allows.
+          bad=0
           for k in 1 2 3 4; do
-            NODE_PATH=.cache/pw/node_modules node tests/e2e.cjs http://127.0.0.1:$E2E_PORT/ --part $k > .cache/status/e2e-$k.log 2>&1 & pids+=($!)
+            NODE_PATH=.cache/pw/node_modules node tests/e2e.cjs http://127.0.0.1:$E2E_PORT/ --part $k > .cache/status/e2e-$k.log 2>&1 || bad=1
           done
-          bad=0; for p in "${pids[@]}"; do wait "$p" || bad=1; done
           for k in 1 2 3 4; do echo "::group::Part $k"; cat .cache/status/e2e-$k.log; echo "::endgroup::"; done
           # status.mjs reads e2e.log: the four logs in part order, and "all passed" only when every part passed
           cat .cache/status/e2e-[1-4].log > .cache/status/e2e.log

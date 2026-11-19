@@ -183,7 +183,7 @@ when they are installed.
 
 CI: `.github/workflows/test.yml` runs setup, the release and
 notice checks, the type check, `npm test`, the mutation test, the
-gate and the browser test (in four parallel parts) on every push
+gate and the browser test (in four parts) on every push
 and pull request.
 
 [docs/BENCHMARK.md](docs/BENCHMARK.md) holds the engine benchmark on the same test images.
