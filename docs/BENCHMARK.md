@@ -36,7 +36,7 @@ Lower is better on every number. Colour differences are CIELAB / ΔE00 (about 1 
 | Yardstick | What it is | What it catches |
 |---|---|---|
 | **Vector truth** (`benchmark/truth/`) | A design drawn from vector shapes at film size (`truth/make.py`): type, hairlines, rings, a soft glow on a fade. Shrunk to 900 px as the input, separated with fixed inks, every film rendered at 400 dpi and laid on a black shirt, then compared with the drawing at a close look and at arm's length. | The films themselves: edges, line weight, solid areas, soft gradients, stray dots. |
-| **Bench** (`tests/bench-test.mjs`) | The regression set: 18 synthetic images × library and art inks, fixed ink counts, print order picked as in the app. | Graphic art, line work, gradients, neutrals. The same cases as `npm run gate`. |
+| **Bench** (`tests/bench-test.mjs`) | The regression set: 18 synthetic images and 12 museum photographs × library and art inks, fixed ink counts, print order picked as in the app. | Graphic art, line work, gradients, neutrals. The same cases as `npm run gate`. |
 
 **Measures:**
 - **Truth edges, solid, glow:** distance to the vector original inside each region. **Edge pixels off by >10** is the

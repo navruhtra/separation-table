@@ -162,8 +162,12 @@ Test images
   no third-party content). test-images/01 to 03 are ADN synthetic test
   images (flat shapes, gradients and lettering; no third-party
   content); no script in this tree draws them. benchmark/truth/*.png
-  are made by benchmark/truth/make.py. All are covered by the MIT
-  License.
+  are made by benchmark/truth/make.py. All of these are covered by the
+  MIT License.
+  test-images/19 to 30 are photographs of works in the public domain,
+  from the Art Institute of Chicago, released by the museum under
+  Creative Commons Zero (CC0). test-images/SOURCES.md lists each
+  work, its museum record and the file's SHA-256.
 
 src/assets/brand/
   The Separation Table marks, made by ADN. The PNGs and favicon.ico

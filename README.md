@@ -188,7 +188,8 @@ and pull request.
 
 [docs/BENCHMARK.md](docs/BENCHMARK.md) holds the engine benchmark on the same test images.
 
-The gate guards ADN's synthetic test images. It does not
+The gate guards 18 synthetic test images and 12 museum photographs
+of public-domain paintings and prints (test-images/SOURCES.md). It does not
 prove print quality; only measured prints do.
 
 ## Status
@@ -236,7 +237,8 @@ a server, so its row comes from a log: `node scripts/status.mjs
   notices of the code built into them are not checked yet (NOTICE).
 - Upscale 2× needs a model you export yourself
   (`scripts/export-sr-model.py`); it is not downloaded.
-- The test images are synthetic. No photograph is in the test set.
+- 18 test images are synthetic. 12 are photographs of paintings and
+  prints. No photograph of a real scene is in the test set.
 
 ## Credits and license
 

@@ -140,6 +140,15 @@ strips("18-fade-to-shirt-white", Wt, [(Wt, INK[c]) for c in ["red", "royal", "go
 # the three ADN synthetic drawings kept in test-images/ (01-03, not drawn here), with their established settings
 for name, mode, g, k, note in [("01-sunset-sim-process", "sim", [17, 17, 17], 6, "gradients on black"), ("02-spot-logo-transparent", "spot", [255, 255, 255], 4, "four flat colors"), ("03-portrait-skin-tones", "sim", [17, 17, 17], 6, "skin and browns, noisy")]:
     cases.insert(0, {"img": name, "mode": mode, "garment": g, "k": k, "note": note, "src": "research"})
+# the museum images kept in test-images/ (19-30, not drawn here): photographs of public-domain works, see test-images/SOURCES.md
+K, W, NAVY, SAND = [17, 17, 17], [255, 255, 255], [28, 42, 74], [201, 180, 143]
+for name, g, k, note in [("19-bedroom-black", K, 7, "oil painting: brush texture, strong colors"), ("20-self-portrait-black", K, 7, "oil painting: skin in short strokes"),
+        ("21-herring-net-black", K, 6, "oil painting: dark, muted sea"), ("22-after-the-hurricane-white", W, 6, "watercolor: soft washes on light paper"),
+        ("23-gulf-stream-white", W, 6, "watercolor: blues and reds"), ("24-shrike-white", W, 5, "bird print on white paper, fine line"),
+        ("25-harlequin-duck-white", W, 5, "bird print, soft color"), ("26-vaquero-sand", SAND, 6, "earth tones, a figure on a plain ground"),
+        ("27-summer-morning-white", W, 6, "hand-colored lithograph, landscape"), ("28-snowy-morning-navy", NAVY, 6, "lithograph: snow, near-white tones on a dark shirt"),
+        ("29-childs-bath-black", K, 7, "patterns, skin and pastel colors"), ("30-coverlet-white", W, 3, "woven two-color pattern")]:
+    cases.append({"img": name, "mode": "sim", "garment": g, "k": k, "note": note, "src": "museum"})
 # fades the gradient-steps metric reads in the existing images: sunset sky beside the sun, ramps, sky
 FADES = {"01-sunset-sim-process": [[440, 110, 460, 380], [300, 140, 320, 500]], "05-neutral-ramps-black": [[44, 84, 556, 256], [44, 344, 556, 516]], "13-sky-gradient-black": [[200, 62, 400, 538]]}
 for c in cases:
