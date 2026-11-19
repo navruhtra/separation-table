@@ -4,8 +4,8 @@ import { rgb2lab, lab2rgb, hex2rgb, rgb2hex, indexToCov, de2000, trapSpot } from
 import { genericLibrary, parseInkCSV, inksToCSV, PRESETS, libraryKind } from "./inks.js";
 import { parseWedgeCSV, fitCalibration, TINTS } from "./calib.js";
 import { matchTarget } from "./targets.js";
-import { autoPlan, autoSizes, autoThumb, searchPlan, orderPlan, ORDER_GAIN, ORDER_SIZE, STACK_RANGE } from "./pipeline.js";
-import { platesFor, filmLabel, plateSlug, specFor, meshFor, minDotFor, checkPlan, PRESS, mixRows, nearestStock, printRating, inkGrams, colorName, USUAL_SCREENS, PAST_USUAL_GAIN, cleanName, NAME_MAX, screensFor, pressTime, pressTimeText, PRESS_TIME, hoursMin, STOCK_MESH, cleanProfile, uniqueName, profilesToJSON, profilesFromJSON, mergeProfiles, builtinProfiles, FABRICS, fabricSettings, fabricText, FORMAT_KEYS, CHECK_LIMITS } from "./plan.js";
+import { autoPlan, autoSizes, autoThumb, searchPlan, orderPlan, ORDER_GAIN, ORDER_SIZE, STACK_RANGE, SCREEN_COST } from "./pipeline.js";
+import { platesFor, filmLabel, plateSlug, specFor, meshFor, minDotFor, checkPlan, PRESS, mixRows, nearestStock, printRating, inkGrams, colorName, USUAL_SCREENS, cleanName, NAME_MAX, screensFor, pressTime, pressTimeText, PRESS_TIME, hoursMin, STOCK_MESH, cleanProfile, uniqueName, profilesToJSON, profilesFromJSON, mergeProfiles, builtinProfiles, FABRICS, fabricSettings, fabricText, FORMAT_KEYS, CHECK_LIMITS } from "./plan.js";
 import { deltaECMC as cjCMC, Lab as cjLab } from "./vendor/color-fn.js";
 import { initHelp } from "./help.js";
 import { VERSION } from "./version.js";
@@ -26,12 +26,19 @@ const store = { get(k, d) { try { const v = localStorage.getItem("sepbench." + k
 /** Shop and press profiles (Shop setup): the saved list, the one in use, and the shop's mesh for each kind of screen. */
 const SHOP0 = { list: /** @type {import("./plan.js").Profile[]} */ ([]), active: /** @type {string | null} */ (null), mesh: { base: null, color: null, white: null } };
 const shopIn = (() => { const v = store.get("profiles", null); return v && Array.isArray(v.list) ? { ...SHOP0, ...v, mesh: { ...SHOP0.mesh, ...(v.mesh || {}) } } : { ...SHOP0 }; })();
-const st = {
-  shop: shopIn,
-  art: null, history: [], prev: null, adj: { ...ADJ0 }, adjOff: false, artAdj: /** @type {any} */ (null), inks: [], library: store.get("library", null) || genericLibrary(), calib: store.get("calib", null),
-  targets: store.get("targets", null) || [{ label: "Creator red (example)", lab: [48, 68, 42], tier: 2 }], mode: "sim", method: "sim", methodPicked: false, tone: 2, freeK: 0, view: "film", chan: 0, src: /** @type {Record<string, string>} */ ({}), refocus: /** @type {number | null} */ (null), autoWhy: /** @type {any} */ (null), whyOpen: false, salience: 1, placed: /** @type {any} */ (null), searched: /** @type {any} */ (null), openRows: /** @type {Set<number>} */ (new Set()), res: null,
+/** The page state that belongs to the open job, as a new job has it. clearJob puts it back when another job opens. */
+const JOB0 = () => ({
+  art: null, history: [], prev: null, adj: { ...ADJ0 }, adjOff: false, artAdj: /** @type {any} */ (null), inks: [],
+  mode: "sim", method: "sim", methodPicked: false, tone: 2, freeK: 0, view: "film", chan: 0, src: /** @type {Record<string, string>} */ ({}), refocus: /** @type {number | null} */ (null), autoWhy: /** @type {any} */ (null), whyOpen: false, salience: 1, placed: /** @type {any} */ (null), searched: /** @type {any} */ (null), openRows: /** @type {Set<number>} */ (new Set()), sugOpen: false, chipInfo: /** @type {string | null} */ (null), res: null,
   prod: /** @type {Map<string, import("./plan.js").ScreenProd>} */ (new Map()), imp: /** @type {any} */ (null),
-  fewer: /** @type {any} */ (null), sizes: loadSizes(), sel: null, selPoints: [], selecting: false, busy: false, autoTok: 0, autoRunning: false, profile: null, sample: false, step: 0, exported: false, checksFailed: 0, mark: null, rOpen: false, advOpen: false, fold: false, compare: false, diff: false, splitX: 0.5, hidden: new Set(), cmpFilm: /** @type {any} */ (null), artCv: /** @type {any} */ (null), hidRes: /** @type {any} */ (null), autoBy: false, tab: "preview", why: "", artFile: /** @type {any} */ (null), insp: { z: /** @type {number | "fit"} */ ("fit"), cx: null, cy: null, all: true, tok: 0, quiet: false, view: /** @type {any} */ (null) },
+  fewer: /** @type {any} */ (null), sel: null, selPoints: [], selecting: false, autoRunning: false, autoBest: /** @type {any} */ (null), profile: null, sample: false, step: 0, exported: false, checksFailed: 0, mark: null, rOpen: false, fold: false, compare: false, splitX: 0.5, hidden: new Set(), cmpFilm: /** @type {any} */ (null), artCv: /** @type {any} */ (null), hidRes: /** @type {any} */ (null), autoBy: false, tab: "preview", why: "", artFile: /** @type {any} */ (null),
+  probe: /** @type {any} */ (null), pressOn: false, pressK: 0, pressRes: /** @type {any} */ (null), savedArt: /** @type {any} */ (null), savedBlob: /** @type {any} */ (null), _encoded: false,
+});
+const st = {
+  shop: shopIn, ...JOB0(),
+  library: store.get("library", null) || genericLibrary(), calib: store.get("calib", null),
+  targets: store.get("targets", null) || [{ label: "Creator red (example)", lab: [48, 68, 42], tier: 2 }],
+  sizes: loadSizes(), units: "in", busy: false, autoTok: 0, autoLive: 0, advOpen: false, jobId: "", insp: { z: /** @type {number | "fit"} */ ("fit"), cx: null, cy: null, all: true, tok: 0, quiet: false, view: /** @type {any} */ (null) },
 };
 
 /* ───────────── Worker plumbing ───────────── */
@@ -51,7 +58,7 @@ function call(msg, transfer = [], onPlate) { const id = ++reqId, t0 = performanc
    written to the console with its time, and kept in window.sepTiming and in the problem report. Off by default. */
 /** A page address parameter: the page's own, or the ADN page's around it (the site frames bench.html; same origin). */
 function urlParam(k) { for (const w of [window, window.parent]) { try { const v = new URLSearchParams(w.location.search).get(k); if (v != null) return v; } catch { /* another origin */ } } return null; }
-/* v1 surface: the groups marked data-later (job list, Press and Stack views, profiles, press time, DCS, dot shape,
+/* v1 surface: the groups marked data-later (Press and Stack views, profiles, press time, DCS, dot shape,
    re-proof, units, test films, report) are not shown. ?later=1 shows them: bench.css hides [data-later] without .later. */
 const LATER = urlParam("later") === "1"; document.documentElement.classList.toggle("later", LATER);
 const TIMING = urlParam("timing") === "1";
@@ -105,7 +112,7 @@ function setArt(rgba, W, H, keepHistory = true) {
   st.art = { rgba, W, H }; st.artAdj = null; $("undoArt").disabled = !st.history.length;
   st.sel = null; st.selPoints = []; import("./ai.js").then(a => a.samReset()).catch(() => { });
   st.prev = downsample(artIn(), PREV_MAX); renderArtCard();
-  syncH();
+  syncH(); renderTabs();
 }
 /** The art the separation reads: the file (after any Fix the art) with Adjust the art applied. The adjusted copy is
     kept until the art or a slider changes. Before/After shows and separates the art without the sliders. */
@@ -165,7 +172,7 @@ function tellPage(type, file, name) {
 async function loadFile(f) {
   if (!f || !/^image\/(png|jpeg|webp)$/.test(f.type)) { setStatus("Use a PNG, JPG or WebP file.", "bad"); return; }
   try {
-    setStatus("Reading…"); const buf = await f.arrayBuffer();
+    const job = st.jobId; setStatus("Reading…"); const buf = await f.arrayBuffer();
     const bmp = await createImageBitmap(new Blob([buf], { type: f.type }), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
     const s = Math.min(1, WORK_MAX / Math.max(bmp.width, bmp.height)), W = Math.round(bmp.width * s), H = Math.round(bmp.height * s);
     const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d", { colorSpace: "srgb" }); g.drawImage(bmp, 0, 0, W, H);
@@ -177,6 +184,7 @@ async function loadFile(f) {
       else info = "No color profile. Used as sRGB.";
     } catch (e) { info = `Color profile not used (${e.message}).`; }
     if (bmp.width > WORK_MAX || bmp.height > WORK_MAX) info += ` Work size ${W} × ${H} px.`;
+    if (job !== st.jobId) return; // another job opened while the file was read
     st.artFile = { name: f.name, W: bmp.width, H: bmp.height, info }; st.sample = false; st.adj = { ...ADJ0 }; st.adjOff = false; renderAdjust(); setArt(rgba, W, H); setStep(2); dropImport(); st.prod.clear(); st.inks = st.inks.filter(i => i.locked); autoSettings(true);
     tellPage("separation:art", f, f.name);
   } catch (e) { setStatus("The image could not be read: " + e.message, "bad"); }
@@ -252,7 +260,14 @@ async function putBack(r) {
 }
 /** first: show a separation with the current settings at once (new art, a new method, a garment change), then refine. */
 async function autoSettings(first = false) {
-  if (!st.prev || st.busy) return; applyAuto(null); st.fewer = null;
+  if (!st.prev || st.busy) return;
+  const tok = st.autoLive = st.autoTok + 1;
+  try { await autoWork(first); } finally { if (st.autoLive === tok) st.autoLive = 0; }
+}
+/** Auto is at work on the open job (its first picture, its trials or its last steps) and nothing stopped it. */
+const autoLive = () => !!st.autoLive && st.autoLive === st.autoTok;
+async function autoWork(first) {
+  applyAuto(null); st.fewer = null;
   const tok = ++st.autoTok; // a newer Auto, or a change by hand while this one works, makes this one stop
   // Auto keeps the print method you picked and tunes the settings inside it. CMYK and 1–3 colors fix their own inks and
   // screen count, so Auto only sets the Advanced values for them. Before you pick a method, Auto suggests one.
@@ -320,7 +335,7 @@ async function autoSettings(first = false) {
   if (tok !== st.autoTok) return;
   const more = r.rows.filter(x => x.mode === b.mode && x.screens > b.screens).sort((x, y) => x.screens - y.screens)[0];
   const why = b.mode === "index" ? `${b.k} colors give the best print for the number of screens.` : b.mode === "spot" ? `The art has ${b.k} flat color${b.k > 1 ? "s" : ""}${r.flat.inks < r.flat.K ? " and the garment color" : ""}. Each color gets one solid screen. Mix each ink to match the art.`
-    : b.search && b.search.screens !== b.search.startScreens ? `${b.k} color screens give the best print for the number of screens. The ink mix search changed ${b.search.startScreens} screens to ${b.search.screens}${b.search.startScreens > USUAL_SCREENS && b.search.screens <= USUAL_SCREENS ? `: past ${USUAL_SCREENS} screens, a screen must raise the rating by more than ${PAST_USUAL_GAIN} stars` : ""}.`
+    : b.search && b.search.screens !== b.search.startScreens ? `${b.k} color screens give the best print for the number of screens. The ink mix search changed ${b.search.startScreens} screens to ${b.search.screens}${b.search.startScreens > USUAL_SCREENS && b.search.screens <= USUAL_SCREENS ? `: past ${USUAL_SCREENS} screens, a screen must improve the press score by more than ${2 * SCREEN_COST} ΔE` : ""}.`
     : `${b.k} color screens give the best print for the number of screens.${more ? (b.robust - more.robust >= 0.05 ? ` ${more.inks} screens improve the score by only ${(b.robust - more.robust).toFixed(1)}. That is not sufficient for one more screen.` : " More screens do not make it better.") : ""}`;
   const kShown = lockKept ? lockK : accentAdded ? b.k + 1 : b.k;
   $("autoNote").textContent = `Auto${st.methodPicked ? ", best settings for" : ":"} ${MODE_NAME[b.mode]}, ${kShown} screen${kShown > 1 ? "s" : ""}. ${why.replace(/^\d+ color screens give the best print for the number of screens\.\s*/, "")}`.trim()
@@ -424,7 +439,7 @@ function renderAutoWhy() {
     <p><b>How Auto decides:</b> it separates a small copy of the art in each way below and scores the print with press movement (ΔE00, 0 is exact, lower is better). Each screen costs 0.3 in the score, so a screen is added only when it improves the print by more than that. ${st.methodPicked ? `You picked ${MODE_NAME[b.mode]}, so Auto tries only ${MODE_NAME[b.mode]} and picks the screen count and settings for it.` : w.flat && w.flat.flat ? `The art looks flat (${w.flat.K} colors cover almost all of it), so solid screens win when they are within 1.0 of the best halftone score: they are cleaner and easier to print.` : "The art has gradients or many colors, so only halftone separations are tried."}</p>
     ${tbl}${sm}
     ${w.order && w.order.start != null ? `<p><b>Print order:</b> inks print dark to light. Where an ink fades out in an area with a full stack of ink, it can end in an edge, because it prints first. Auto tries such an ink later in the order on a small copy and keeps the new order only if the score with press movement and the Print view are both ${Math.round(ORDER_GAIN * 100)}% better there and at full size. ${w.order.fades.length ? `Fades tested: ${w.order.fades.map(x => esc(x.name)).join(", ")}. Dark to light: ${w.order.start.toFixed(2)}; ${w.order.tries.map(t => `${esc(t.name)} after ${esc(t.after)}: ${t.s.toFixed(2)}`).join("; ")}.` : "No ink fades out in a full stack."} ${w.order.kept ? `Kept: ${esc(w.order.kept.name)} after ${esc(w.order.kept.after)}.` : "The order stays dark to light."}</p>` : ""}
-    ${b.search ? `<p><b>Ink mix search:</b> from the ${b.search.pool.length} shelf inks that cover the art best (${esc(b.search.pool.join(", "))}), Auto tested ${b.search.evals} mixes (add, remove or swap one ink at a time) and kept the best rating: ${b.search.startStars.toFixed(2)} → ${b.search.stars.toFixed(2)} stars, ${b.search.startScreens} → ${b.search.screens} screens. A mix with one more screen must gain more than 0.05 stars, and more than ${PAST_USUAL_GAIN} past ${USUAL_SCREENS} screens (underbase included), the usual most a shop prints.</p>` : ""}
+    ${b.search ? `<p><b>Ink mix search:</b> from the ${b.search.pool.length} shelf inks that cover the art best (${esc(b.search.pool.join(", "))}), Auto tested ${b.search.evals} mixes (add, remove or swap one ink at a time) and kept the best: ${b.search.startStars.toFixed(2)} → ${b.search.stars.toFixed(2)} stars, ${b.search.startScreens} → ${b.search.screens} screens. A mix with one more screen must improve the press score by more than ${SCREEN_COST} ΔE, and by more than ${2 * SCREEN_COST} past ${USUAL_SCREENS} screens (underbase included), the usual most a shop prints.</p>` : ""}
     <p><b>Advanced, set by Auto:</b> smallest dot ${$("minDot").value}% (what ${mesh} mesh holds at ${lpi} LPI) · trap ${$("trap").value} mm (${press} press) · ink opacity ${Math.round(+$("opacity").value * 100)}% (${st.calib && st.calib.opacity != null ? "from your calibration" : "typical plastisol, not calibrated"}) · inks from ${$("palSrc").value === "art" ? "the artwork (mixed to match)" : "your ink library"}. Everything else is the standard value.</p>`;
 }
 $("awTog").addEventListener("click", () => { st.whyOpen = !st.whyOpen; renderAutoWhy(); });
@@ -478,12 +493,16 @@ async function run(repick = true, fromAuto = false, trial = false, quick = false
 }
 /* A colour the art needs (a red stripe, a green stem) that no screen in this budget can print without harming the rest:
    the engine measured one more screen for it. The screen count is yours (a screen costs money), so it is offered, not
-   added. One tap adds the ink, held to its own hue, plus one screen. */
+   added. One tap adds the ink, held to its own hue, plus one screen.
+   Where it shows: the dashed [+] at the left end of the screens row (in place of the "Screens" label) says a screen is
+   suggested; pushing it opens one row for each suggestion above the screens row (st.sugOpen), with the ink's color, the
+   reason and the add button. */
 /* Line work in a colour no ink matches prints as its nearest ink, solid (clean, but that ink's colour). One more screen
    in its own colour prints it flat and exact; offered, not added (a screen costs money). */
 function renderLineNote() {
   const sg = st.res && st.res.lineSuggest, el = $("lineNote"), show = !!sg && st.mode === "sim" && !methodKey() && $("solidDetail").checked;
-  el.hidden = !show; if (!show) return;
+  el.hidden = !show || !st.sugOpen; if (!show) return "";
+  $("lineSw").style.background = rgb2hex(lab2rgb(sg.lab));
   const pct = sg.area * 100, area = pct >= 1 ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`;
   $("lineText").textContent = `${sg.name} line work (${area} of the art) has no ink, so it prints as solid ${sg.asInk}. A ${sg.name} screen prints it flat in its own color: its color error goes from ${sg.before.toFixed(0)} to under 4.`;
   const b = $("lineAdd"); b.textContent = `Add a ${sg.name} screen`; b.disabled = +$("nInks").value >= 12;
@@ -491,18 +510,24 @@ function renderLineNote() {
   // (it goes before a highlight white, which keeps printing last)
   b.onclick = () => { const ink = { name: sg.name, lab: sg.lab.slice(), source: "line", locked: true, chosen: true }, hl = st.inks.findIndex(i => i.lab[0] > 92);
     st.inks = hl < 0 ? st.inks.concat([ink]) : [...st.inks.slice(0, hl), ink, ...st.inks.slice(hl)];
-    $("nInks").value = String(Math.min(12, st.inks.length)); st.why = `${sg.name} screen`; run(false); };
+    $("nInks").value = String(Math.min(12, st.inks.length)); st.why = `${sg.name} screen`; st.sugOpen = false; run(false); };
+  return sg.name;
 }
 function renderAccent() {
-  renderLineNote();
   const sg = st.res && st.res.accentSuggest, el = $("accentNote"), show = !!sg && st.mode === "sim" && !methodKey();
-  el.hidden = !show; if (!show) return;
+  const names = [show ? sg.name : "", renderLineNote()].filter(Boolean), tog = $("sugTog");
+  if (!names.length) st.sugOpen = false; // nothing suggested: the rows start closed the next time something is
+  $("scrLab").hidden = !!names.length; tog.hidden = !names.length;
+  tog.setAttribute("aria-expanded", String(st.sugOpen)); tog.title = `Suggested screen: ${names.join(", ")}`; tog.setAttribute("aria-label", tog.title);
+  el.hidden = !show || !st.sugOpen; if (!show) return;
+  $("accentSw").style.background = rgb2hex(lab2rgb(sg.lab));
   const pct = sg.area * 100, area = pct >= 1 ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`;
   $("accentText").textContent = `${st.autoBy && st.inks.some(i => i.source === "accent") ? "Optional: " : ""}${sg.name} (${area} of the art) has no ink. One more screen prints it: its color error goes from ${sg.accentBefore.toFixed(0)} to ${sg.accentAfter.toFixed(0)}.`;
   const b = $("accentAdd"); b.textContent = `Add a ${sg.name} screen`; b.disabled = +$("nInks").value >= 12;
   b.onclick = () => { st.inks = st.inks.filter(i => i.locked).concat([{ name: sg.name, lab: sg.lab.slice(), source: "accent", locked: true, chosen: true }]);
-    $("nInks").value = String(Math.min(12, +$("nInks").value + 1)); st.why = `${sg.name} screen`; run(true); };
+    $("nInks").value = String(Math.min(12, +$("nInks").value + 1)); st.why = `${sg.name} screen`; st.sugOpen = false; run(true); };
 }
+$("sugTog").addEventListener("click", () => { st.sugOpen = !st.sugOpen; renderAccent(); });
 function showStats() {
   const s = st.res.stats, N = st.inks.length;
   $("sScreens").textContent = N + (st.res.ub ? 1 : 0); $("sMean").textContent = s.mean.toFixed(1); $("sMean").title = `95th percentile ${s.p95.toFixed(1)} · median ${s.median.toFixed(1)}`;
@@ -538,7 +563,6 @@ const NOTES = {
   orig: "Your artwork on the garment color.",
   sim: "This is the print that these screens make on the garment.",
   split: "Left of the line: your artwork. Right: the dots on the films, every screen in print order, each ink at full strength (as Photoshop shows spot channels). Drag the line to compare.",
-  de: "Bright areas show where the print is different from the art. Black is an exact match. Bright red is a difference of 10 or more. Add or change an ink where the area is bright.",
   chan: "This is the separation for one screen. Black is ink. Click a swatch to see a different screen.",
   stack: "Stack: how much color ink lands on each spot (the base not counted). Blue is light, green to yellow nears your ink limit, red is over it: heavy ink that needs more flash and feels thick.",
   film: "Print: the real films that go to the RIP, dot by dot. All shows every screen's dots on the garment in print order, each ink at full strength. Tap a color card in Separation to see one film: black is ink.",
@@ -548,7 +572,7 @@ function draw() {
   const v0 = st.view; $("zoomBox").hidden = v0 !== "film" || !st.res; paintBackdrop(); renderScreens(); renderSummaries();
   const p = st.prev; if (!p) { const cv = $("view0"); cv.width = 600; cv.height = 600; cv.getContext("2d").clearRect(0, 0, 600, 600); $("viewNote").textContent = ""; return; }
   // Print with the Compare or Show differences toggles on draws the split or the difference map
-  const v = v0 === "sim" ? (st.diff ? "de" : st.compare ? "split" : "sim") : v0;
+  const v = v0 === "sim" ? (st.compare ? "split" : "sim") : v0;
   $("viewNote").textContent = (NOTES[v] || "") + (st.hidden.size && v0 === "sim" ? " Some screens are hidden: the preview shows the print without them." : "") + (st.calib || v === "orig" || v === "split" || v === "film" ? "" : " The model is not calibrated yet.") + (st.mark && (v === "orig" || v === "sim") ? ` Marked: ${st.mark.what}, in the red box. Tap Hide on the check to clear it.` : "");
   if (st.pressOn && v === "sim") $("viewNote").textContent = `Press: the print on the garment after screen ${st.pressK || 1}, with the screens printed so far. ◀ and ▶ step through the screens.`;
   if (v === "film" && !st.res) { const cv = $("view0"); cv.classList.remove("zoomed"); cv.style.width = ""; cv.style.transform = ""; drawFlat("orig"); return; }
@@ -582,7 +606,6 @@ function drawFlat(v, cv = $("view0")) {
   if (st.res && (v === "sim" || v === "split")) { const s = (st.hidRes || st.res).img; for (let y = 0; y < p.H; y++) for (let x = v === "split" ? sx : 0; x < p.W; x++) { const q = y * p.W + x; d[q * 4] = s[q * 4]; d[q * 4 + 1] = s[q * 4 + 1]; d[q * 4 + 2] = s[q * 4 + 2]; d[q * 4 + 3] = 255; } }
   if (v === "stack") { const m = st.res && st.res.stackMap, lim = +stackLimitPct(); if (m && m.length === P) for (let q = 0; q < P; q++) { if (p.alpha[q] < 128) { for (let c = 0; c < 3; c++) d[q * 4 + c] = gar[c]; d[q * 4 + 3] = 255; continue; }
       const c = stackColor(m[q] * 2, lim); d[q * 4] = c[0]; d[q * 4 + 1] = c[1]; d[q * 4 + 2] = c[2]; d[q * 4 + 3] = 255; } }
-  if (st.res && v === "de") { const e = st.res.de; for (let q = 0; q < P; q++) { const t = Math.min(1, e[q] / 10); d[q * 4] = 255 * Math.min(1, t * 1.6); d[q * 4 + 1] = 150 * Math.max(0, Math.min(1, (t - 0.45) * 1.2)); d[q * 4 + 2] = 40 * t; d[q * 4 + 3] = 255; } }
   if (st.res && v === "chan") { const ci = st.chan; for (let q = 0; q < P; q++) { const a = ci === N ? (st.res.ub ? st.res.ub[q] : 0) : st.res.cov[q * N + ci]; d[q * 4] = d[q * 4 + 1] = d[q * 4 + 2] = 255 * (1 - a); d[q * 4 + 3] = 255; } }
   if (st.sel && (v === "orig" || v === "sim")) for (let q = 0; q < P; q++) if (st.sel[q]) { d[q * 4] = d[q * 4] * 0.5 + 74; d[q * 4 + 1] = d[q * 4 + 1] * 0.5 + 82; d[q * 4 + 2] = d[q * 4 + 2] * 0.5 + 107; }
   // Show where (a pre-print check): the marked pixels as they are, the rest washed out, and a box around them
@@ -625,7 +648,9 @@ function busiestCenter(sels, fw, fh) {
 /* Inspect: the real films at true resolution, zoomed and dragged anywhere. "All" stacks every screen's dots in print
    order on the garment, so you see the print the way a loupe would; a single swatch shows that film, black is ink. */
 /* Zoom is continuous from 50% to 800% on a log slider (equal steps feel the same at every zoom); Fit shows the whole design. */
-const ZMAX = 8, zFit = () => { const { Wp, Hp } = filmGeom(), bw = Math.max(200, $("view0").parentElement.clientWidth), bh = Math.max(200, $("view0").parentElement.clientHeight); return Math.min(1, bw / Wp, bh / Hp); }, zClamp = z => Math.max(zFit(), Math.min(ZMAX, z));
+/* At Fit the design keeps a margin inside the workspace (--fitpad, bench.css). */
+const fitPad = () => 2 * (parseFloat(getComputedStyle($("square")).getPropertyValue("--fitpad")) || 0);
+const ZMAX = 8, zFit = () => { const { Wp, Hp } = filmGeom(), m = fitPad(), bw = Math.max(200, $("view0").parentElement.clientWidth - m), bh = Math.max(200, $("view0").parentElement.clientHeight - m); return Math.min(1, bw / Wp, bh / Hp); }, zClamp = z => Math.max(zFit(), Math.min(ZMAX, z));
 function inspGeom() {
   // the inspect window is the image box, capped at 60% of the window height so the zoom buttons and swatches stay in view
   const { dpi, Wp, Hp } = filmGeom(), bw = Math.max(200, $("view0").parentElement.clientWidth), bh = Math.max(200, $("view0").parentElement.clientHeight);
@@ -663,7 +688,7 @@ async function drawInspect(cmp = false) {
   const quiet = st.insp.quiet; st.insp.quiet = false;
   if (!quiet) busyOn("Drawing the dots…"); let films;
   try { films = await call({ type: "plates", plates: want, trapMm: +$("trap").value, widthIn: +$("outW").value, Wp: WpR, Hp: HpR, crop: c, dpi: dpiR, lpi: +$("lpi").value, screening: $("screening").value === "fm" ? "fm" : "am", overprint: ovp(), rho: st.calib && st.calib.overlap != null ? st.calib.overlap : PRESS[$("press").value].rho, rhos: PRESS[$("press").value].rhos, stackLimit: stackLim(), dot: printDot(), choke: chokePx(dpiR), indexDpi: +$("indexDpi").value }); } finally { if (!quiet) busyOff(); }
-  if (tok !== st.insp.tok || (cmp ? !(st.view === "sim" && st.compare && !st.diff) : st.view !== "film")) return;
+  if (tok !== st.insp.tok || (cmp ? !(st.view === "sim" && st.compare) : st.view !== "film")) return;
   const id = new ImageData(c.w, c.h), d = id.data, n = c.w * c.h;
   if (all) {
     // no ink model: where a film has ink, that ink's color covers what is under it (print order), like spot channels at 100%
@@ -727,7 +752,7 @@ function preflight(pl) {
 function showRegion(ref, what = "") {
   if (st.mark && st.mark.ref === ref) st.mark = null;
   else { const job = checkJob(), mask = regionMask(ref, job, st.res); if (!mask) return; st.mark = { ref, mask, res: st.res, what, lim: regionKey(job) };
-    if (st.view !== "orig" && !(st.view === "sim" && !st.compare && !st.diff)) setView("orig", true);
+    if (st.view !== "orig" && !(st.view === "sim" && !st.compare)) setView("orig", true);
     if (phone()) $("square").scrollIntoView({ block: "nearest", behavior: "smooth" }); }
   renderOrder(); draw();
 }
@@ -1034,6 +1059,12 @@ $("reportCopy").addEventListener("click", async () => { const t = problemReport(
   store.set("errorsSeen", store.get("errors", []).length); });
 $("reportClear").addEventListener("click", () => { store.set("errors", []); store.set("errorsSeen", 0); $("reportText").hidden = true; renderReport("The error log is empty."); });
 $("shopOpen").addEventListener("click", () => renderReport());
+/* Theme: light, dark, or the device's scheme (the start). index.html sets it before the first paint; this is the switch
+   under Shop setup. The pick is kept in the browser. */
+{ const root = document.documentElement, mq = matchMedia("(prefers-color-scheme: dark)"), seg = $("themeSeg");
+  const set = t => { root.dataset.theme = t; root.dataset.scheme = t === "device" ? (mq.matches ? "dark" : "light") : t; for (const b of seg.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === t)); };
+  seg.addEventListener("click", e => { const b = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest("button[data-v]")); if (b) { store.set("theme", b.dataset.v); set(/** @type {string} */ (b.dataset.v)); } });
+  mq.addEventListener("change", () => set(root.dataset.theme || "device")); set(root.dataset.theme || "device"); }
 // an error last time: offer the report once, in the status line
 { const n = store.get("errors", []).length; if (n > store.get("errorsSeen", 0)) { window.setTimeout(() => { if (!st.res && LATER) setStatus("Separation Table had an error last time. Shop setup > Report a problem copies a report for it."); }, 0); store.set("errorsSeen", n); } }
 
@@ -1142,7 +1173,7 @@ async function importFilms(list) {
     // what Close the films goes back to: Auto (if it was on) and the screen count
     const before = st.imp ? st.imp.before : { autoBy: st.autoBy || st.autoRunning, nInks: $("nInks").value, method: st.method, res: st.res, inks: st.inks.slice(), salience: st.salience, src: { ...st.src }, outW: $("outW").value };
     st.imp = { name: set.name, mode: set.mode, ch, ub: ch.findIndex(c => c.ub), workW, workH, before }; if (st.imp.ub < 0) st.imp.ub = null;
-    st.prod.clear(); st.openRows.clear(); st.insp.all = true; st.autoBy = false; if (st.autoRunning) { st.autoTok++; st.autoRunning = false; $("auto").disabled = false; }
+    st.prod.clear(); st.openRows.clear(); st.chipInfo = null; st.insp.all = true; st.autoBy = false; if (st.autoRunning) { st.autoTok++; st.autoRunning = false; $("auto").disabled = false; }
     if (st.method !== "sim" || st.mode !== "sim") { setMethod("sim", false); document.querySelectorAll("#mode button").forEach(b => b.setAttribute("aria-pressed", String(/** @type {any} */ (b).dataset.v === "sim"))); }
     st.inks = ch.map((c, j) => ({ c, j })).filter(x => !x.c.ub).map(({ c, j }) => ({ name: c.name, lab: c.lab.slice(), source: "imported", locked: true, imp: j }));
     for (const c of ch) if (c.hits === 2 || c.set) st.prod.set(c.ub ? UB_KEY : c.name, { ...(c.hits === 2 && { hits: 2, flashBetween: c.flashBetween }), ...c.set });
@@ -1171,10 +1202,10 @@ function setView(v, keepMark = false) {
   if (!keepMark && st.mark) { st.mark = null; if (st.res) renderOrder(); }
   // Press: the print as it builds on the press, screen by screen; leaving it shows every screen again
   if (!LATER && (v === "press" || v === "stack")) v = "film"; // a view with no tab: Print
-  const press = v === "press"; if (press) { v = "sim"; st.diff = false; $("diffT").checked = false; }
+  const press = v === "press"; if (press) v = "sim";
   if (st.pressOn && !press) { st.pressOn = false; st.hidden.clear(); st.hidRes = null; }
   st.pressOn = press; $("pressBar").hidden = !press;
-  if (v === "cmp") { st.compare = true; v = "sim"; } else { st.compare = false; if (v !== "sim") { st.diff = false; $("diffT").checked = false; } }
+  if (v === "cmp") { st.compare = true; v = "sim"; } else st.compare = false;
   if (v === "film" && st.res && st.step !== 3 && st.view !== "film") setStep(3);
   st.view = v; paintBackdrop(); const on = press ? "press" : st.compare ? "cmp" : v; document.body.dataset.view = on;
   $("view").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === on))); if (press) pressStep(st.pressK || 0); else draw();
@@ -1379,35 +1410,59 @@ attachHelp = initHelp(); $("helpVersion").textContent = `Separation Table versio
 { const d = $("helpPanel"); $("helpOpen").addEventListener("click", () => { d.showModal(); $("helpQ").focus(); }); $("helpClose").addEventListener("click", () => d.close());
   d.addEventListener("click", e => { if (e.target === d) d.close(); }); }
 /* ───────────── Auto and Default for the finer settings ─────────────
-   Each finer setting remembers where its value came from: Auto (chosen for this job), Default (the standard value) or
-   Manual (you changed it). Every Auto button (Color screens, step 2 and step 3 Advanced) is green only while the whole
-   job is on Auto; changing any setting by hand turns them all off. Pushing Separate with nothing changed keeps Auto. */
+   Each finer setting remembers where its value came from (st.src): Auto, Default (the standard value) or Manual (you
+   changed it). Its row in Advanced shows that as a mark: green where Auto chose the value from the job, dark where you
+   set it (push the mark to give that value back to Auto), empty for a standard value. Auto (Color screens, and the
+   line at the top of Advanced) is green only while the whole job is on Auto; changing any setting by hand turns it off.
+   Pushing Separate with nothing changed keeps Auto. */
 const ADV = { 2: ["dpi", "screening", "angle", "dotShape", "gain", "minDot", "scatter", "maxDot", "stackLimit", "indexDpi"], 3: ["palSrc", "smooth", "rare", "forceWhite", "cleanSpot", "solidDetail", "ubMode", "ubStrength", "choke", "trap", "opacity"] };
 const getV = id => $(id).type === "checkbox" ? $(id).checked : $(id).value;
 const setV = (id, v) => { const e = $(id); if (e.type === "checkbox") e.checked = !!v; else e.value = String(v); e.dispatchEvent(new Event("input")); };
 const DEF = Object.fromEntries([...ADV[2], ...ADV[3]].map(id => [id, getV(id)]));
 /** What Auto sets: the standard values, plus what it can choose from the job: the smallest dot the mesh holds (from the
     LPI), trap from the press, ink opacity from your calibration, and from the art the ink source and tonal smoothness. */
-function autoVals(best) {
+function autoVals(best) { return { ...DEF, ...autoChosen(best) }; }
+/** Only the values Auto chooses from the job, by control id. Every other setting gets its standard value from Auto. */
+function autoChosen(best) {
   // trap 0.4 mm on a manual press: the misregistration test closed ~92% of gaps at 0.1-0.3 mm drift
-  const v = { ...DEF }, c = J.autoChoices(settings(), best, st.calib, st.shop.mesh.color), ID = { inkSource: "palSrc" };
-  for (const [k, x] of Object.entries(c)) v[ID[k] || k] = String(x);
-  return v;
+  const ID = { inkSource: "palSrc" };
+  return Object.fromEntries(Object.entries(J.autoChoices(settings(), best, st.calib, st.shop.mesh.color)).map(([k, x]) => [ID[k] || k, String(x)]));
 }
-function applyAuto(best) { const v = autoVals(best); st.salience = best ? best.salience ?? 1 : 1; for (const id of [...ADV[2], ...ADV[3]]) { setV(id, v[id]); st.src[id] = "auto"; } }
+/** best: Auto's pick for this job, or null. Its mode and smoothness are kept (st.autoBest) so one value can go back to Auto later. */
+function applyAuto(best) { st.autoBest = best ? { mode: best.mode, smooth: best.smooth } : null; const v = autoVals(best); st.salience = best ? best.salience ?? 1 : 1; for (const id of [...ADV[2], ...ADV[3]]) { setV(id, v[id]); st.src[id] = "auto"; } }
+/** One setting back to Auto: the value Auto chooses for this job now (its last pick, the LPI, press, fabric and
+    calibration). The change event makes the page read the value as it does a typed one; the source is then Auto again. */
+function giveBack(id) { setV(id, autoVals(st.autoBest)[id]); $(id).dispatchEvent(new Event("change")); st.src[id] = "auto"; renderAutoState(); $(id).focus(); }
 /** A setting changed by hand: it is Manual now, and the job is off Auto. */
 function markManual(id) { st.src[id] = "manual"; st.autoBy = false; if (st.autoRunning) { st.autoTok++; st.autoRunning = false; $("auto").disabled = false; setStatus("Updated. Auto stopped: your setting is kept."); } renderAutoState(); }
+const PM_TITLE = { auto: "Auto chose this value", hand: "You set this value. Push to give it back to Auto.", std: "Standard value" };
 function renderAutoState() {
-  const on = !!st.autoBy;
-  [$("auto"), ...Array.from(document.querySelectorAll("[data-auto]"))].forEach(/** @param {any} b */ b => { b.classList.toggle("on", on); b.textContent = on ? "✓ Auto" : "Auto"; b.setAttribute("aria-pressed", String(on)); });
-  for (const id of [...ADV[2], ...ADV[3]]) {
-    const el = $(id), host = el.type === "checkbox" ? el.closest("label").querySelector(".lab") : document.querySelector(`label[for="${id}"]`); if (!host) continue;
-    let t = host.querySelector(".atag"); if (!t) { t = document.createElement("span"); t.className = "atag"; host.appendChild(t); }
-    // only values that differ from Auto get a tag: the green Auto button already says the rest is on Auto
-    const s = st.src[id], txt = s === "manual" ? "Manual" : s === "default" ? "Default" : "";
-    t.textContent = txt; t.className = "atag" + (txt ? " " + txt.toLowerCase() : "");
+  const on = !!st.autoBy, ids = [...ADV[2], ...ADV[3]], chosen = autoChosen(st.autoBest), hand = ids.filter(id => st.src[id] === "manual").length;
+  for (const b of [$("auto"), $("advAuto")]) { b.classList.toggle("on", on); b.textContent = on ? "✓ Auto" : "Auto"; }
+  $("auto").setAttribute("aria-pressed", String(on));
+  $("advHand").textContent = hand ? `${hand} set by hand` : on ? "all values from Auto" : "no value set by hand";
+  for (const id of ids) {
+    const m = /** @type {HTMLElement} */ (document.querySelector(`[data-pm="${id}"]`)), k = st.src[id] === "manual" ? "hand" : st.src[id] === "auto" && id in chosen ? "auto" : "std"; if (m.dataset.k === k) continue;
+    // the dark mark is a button (it gives the value back to Auto); the other two only show the source
+    const n = document.createElement(k === "hand" ? "button" : "i"); n.className = "pm" + (k === "std" ? "" : " " + k); n.dataset.pm = id; n.dataset.k = k; n.title = PM_TITLE[k];
+    if (k === "hand") { /** @type {HTMLButtonElement} */ (n).type = "button"; n.setAttribute("aria-label", `${m.parentElement.querySelector(".pl").firstChild.textContent}: set by hand. Give back to Auto`); }
+    m.replaceWith(n);
   }
+  renderAdvSums();
 }
+$("paneSide").addEventListener("click", e => { const m = /** @type {HTMLElement} */ (e.target).closest("button.pm"); if (m) giveBack(/** @type {HTMLElement} */ (m).dataset.pm); });
+/** The line a closed group shows: its current values. */
+const ADV_SUM = {
+  press: () => `${getV("lpi")} LPI · ${$("press").selectedOptions[0].text}`,
+  halftone: () => `${{ same: "AM one angle", lock: "AM interlocked", rotated: "AM rotated", fm: "Index" }[getV("screening")]} · ${getV("angle")}° · ${getV("dpi")} dpi`,
+  dots: () => `gain ${getV("gain")} · min ${getV("minDot")} · max ${getV("maxDot")} · stack ${getV("stackLimit")}`,
+  inks: () => `${getV("palSrc") === "art" ? "Artwork" : "Ink library"} · smooth ${$("smoothV").textContent} · rare ${$("rareV").textContent}`,
+  white: () => `Underbase ${getV("ubMode")} · ${getV("ubStrength")}% · choke ${getV("choke")}`,
+  edges: () => `trap ${getV("trap")} mm · ${getV("cleanSpot") ? "clean" : "clean off"} · ${getV("solidDetail") ? "solid" : "solid off"}`,
+  shirt: () => `ink opacity ${$("opacityV").textContent}`,
+};
+function renderAdvSums() { document.querySelectorAll("[data-sum]").forEach(/** @param {any} e */ e => { e.textContent = ADV_SUM[e.dataset.sum](); }); }
+for (const id of ["lpi", "press", ...ADV[2], ...ADV[3]]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, renderAdvSums);
 for (const id of [...ADV[2], ...ADV[3]]) $(id).addEventListener("change", () => markManual(id));
 // LPI and press feed Auto's choices: while a setting is on Auto it follows them (before the re-separation reads it)
 const followAuto = () => { const v = autoVals(null); for (const id of ["minDot", "trap"]) if (st.src[id] === "auto" && getV(id) !== v[id]) setV(id, v[id]); };
@@ -1417,9 +1472,7 @@ document.querySelectorAll("[data-def]").forEach(/** @param {any} b */ b => b.add
   const g = +b.dataset.def; for (const id of ADV[g]) { setV(id, DEF[id]); st.src[id] = "default"; } if (g === 3) st.salience = 1;
   st.autoBy = false; renderAutoState(); st.why = "default settings"; run(g === 3);
 }));
-/** Phones: the rating row sits right under the image and the view buttons, in the pinned stack. Desktop has its own row
-    under the image (dRate), so the phone row goes back to the bottom bar there (hidden by the desktop styles). */
-function placeRate() { const m = $("mRate"); if (phone()) { if (m.parentElement !== $("viewBar")) $("viewBar").appendChild(m); } else if (m.parentElement !== $("mNav")) $("mNav").insertBefore(m, $("mNav").firstChild); }
+renderAutoState();
 /* ───────────── v3 layout: steps left, workspace middle, finer settings right ───────────── */
 const STEPS = { 1: "Artwork", 2: "Garment / press", 3: "Separation", 4: "Export" };
 const phone = () => window.matchMedia("(max-width: 960px)").matches;
@@ -1438,26 +1491,17 @@ function renderStepRows() {
 }
 function setStep(n, scroll = true) {
   st.step = n; st.fold = false; renderStepRows();
-  document.querySelectorAll(".sidesec").forEach(/** @param {any} d */ d => d.hidden = d.dataset.for !== String(n));
-  $("sideTitle").textContent = `Advanced · ${STEPS[n]}`;
+  document.querySelectorAll(".sidesec").forEach(/** @param {any} d */ d => d.hidden = !d.dataset.for.split(" ").includes(String(n)));
+  $("sideTitle").textContent = STEPS[n];
   placeSide(); renderNav(); if (st.res) renderScreens();
   const el = $(`step${n}`); if (!scroll) return;
-  if (phone()) { sq.hold = null; sq.peek = null; const pane = $("paneSteps"); pane.style.minHeight = "";
-    const g = stackGeom(), doc = el.getBoundingClientRect().top + window.scrollY, max = document.documentElement.scrollHeight - window.innerHeight;
-    // Scroll only as far as the step needs: the least scroll that shows the whole step above the Back / Next bar
-    // (no scroll at all if it already fits under the full image). A step taller than the space stops with its title just
-    // under the stack — and, on normal phones, never past the point where the image becomes the band, so the image stays on
-    // screen. Only on very short screens (landscape: the band would leave the step under 160 px) may the image scroll away.
-    // the furthest scroll where the step's title is still just under the stack (the gap only shrinks as the page scrolls)
-    let lo = 0, hi = Math.max(1, Math.ceil(doc)); if (doc - stackAt(0, g).bottom < 8) hi = 0; else while (hi - lo > 1) { const m = (lo + hi) >> 1; if (doc - m >= stackAt(m, g).bottom + 8) lo = m; else hi = m; }
-    const yTop = lo;
-    const navH = $("mNav").getBoundingClientRect().height, docBottom = doc + el.getBoundingClientRect().height;
-    const yFit = Math.max(0, Math.ceil(docBottom - (window.innerHeight - navH) + 9)); // the least scroll that shows the whole step
-    const keep = window.innerHeight - navH - (g.band + g.vb) >= 160, yBand = Math.max(0, Math.round(g.head + g.full - g.band));
-    let y = Math.min(yFit, yTop); if (keep) y = Math.min(y, yBand);
-    // the page is not padded to reach that spot: it scrolls only as far as there is content
-    y = Math.min(y, Math.max(0, max));
-    pageTo(y); }
+  if (phone()) { const doc = el.getBoundingClientRect().top + window.scrollY, max = document.documentElement.scrollHeight - window.innerHeight;
+    // Scroll only as far as the step needs: the least scroll that shows the whole step above the Back / Next bar (no
+    // scroll at all if it already fits). A step taller than the space stops with its title just under the pinned
+    // workspace (on a screen too short to pin it, at the top). The page is not padded to reach that spot.
+    const navH = $("mNav").getBoundingClientRect().height, pinned = document.body.classList.contains("nopin") ? 0 : pinnedH();
+    const yTop = Math.max(0, Math.floor(doc - pinned - 9)), yFit = Math.max(0, Math.ceil(doc + el.getBoundingClientRect().height - (window.innerHeight - navH) + 9));
+    window.scrollTo({ top: Math.min(yFit, yTop, Math.max(0, max)), behavior: "smooth" }); }
   else { const pane = $("paneSteps"); pane.scrollTo({ top: el.offsetTop - pane.offsetTop - 12, behavior: "smooth" }); }
 }
 // The whole header opens a closed step and folds an open one. The help mark stops the click.
@@ -1476,17 +1520,14 @@ advTog.addEventListener("click", () => { st.advOpen = !st.advOpen; renderAdv(); 
 function placeSide() {
   const side = $("paneSide"), body = $(`step${st.step || 1}Body`);
   if (phone()) { const nx = body.querySelector(".next"); if (side.parentElement !== body || (nx && side.nextSibling !== nx)) body.insertBefore(side, nx); if (advTog.nextSibling !== side) body.insertBefore(advTog, side); }
-  else { if (side.parentElement !== document.querySelector(".v3")) document.querySelector(".v3").insertBefore(side, $("sideOpen")); advTog.remove(); }
-  renderAdv(); placeRate();
+  else { if (side.parentElement !== document.querySelector(".v3")) document.querySelector(".v3").appendChild(side); advTog.remove(); }
+  // the theme switch is one element: in the title row on a phone, at the foot of the step column on a desktop
+  const seg = $("themeSeg"), home = !phone() ? null : document.body.classList.contains("inheader") ? $("shopPanel").querySelector("section") : $("mShop"), box = home ? home.parentElement : document.querySelector(".stepfoot");
+  if (seg.parentElement !== box) /** @type {Element} */ (box).insertBefore(seg, home);
+  renderAdv();
 }
 window.matchMedia("(max-width: 960px)").addEventListener("change", () => { placeSide(); renderNav(); if (st.step) renderStepRows(); }); window.addEventListener("resize", () => renderNav());
-// phones: the image, the view row and the rating line pin on top, in that order (the "stack").
-// 1. Past the header the image shrinks one pixel for each pixel you scroll, down to a band, so its bottom edge moves with the content.
-// 2. Then the band and the view row scroll off; only the rating line stays, with a small picture of the art. The steps get the whole screen.
-// 3. Scrolling up, the steps scroll back all the way first; the stack comes back only when the page reaches it, as part of the page
-//    (it never slides over the steps). 
-// The space the image gives up stays in the page (as margin) and the stack moves with sticky offsets, so the content never jumps.
-const BAND = 222;
+// phones: the workspace pins at the top of the screen (bench.css) while the rows and the steps scroll under it.
 /* Framed in an ADN page (the tool page, the wall), the frame is as tall as the table and the page scrolls, not the
    table, so the table's own scroll never moves. The page's scroll is read instead: y is how far the page has scrolled
    past the frame's top (under the site header and the program header, [data-tool-header]); vh is the height left
@@ -1501,74 +1542,33 @@ function parentPin() {
     // art keeps one size while the page scrolls
     return { y: Math.max(0, Math.round(top - fr.top)), vh: Math.max(240, P.innerHeight - held) }; } catch { return null; }
 }
-const scrollPos = () => { const p = parentPin(); return p ? p.y : window.scrollY; };
-const sq = { hold: /** @type {number | null} */ (null), peek: /** @type {number | null} */ (null), off: 0, prog: false, progT: 0, timer: 0, last: 0, g: /** @type {any} */ (null) };
-/** Stack geometry at scroll y with the stack in its natural place (pure: used by syncSq and to aim step scrolling). */
-function stackAt(y, g) {
-  const v = Math.round(Math.min(g.full, Math.max(g.band, g.full - Math.max(0, y - g.head)))), natural = Math.min(g.maxOff, Math.max(0, y - (g.head + g.full - g.band)));
-  return { v, natural, bottom: v + g.vb - natural };
-}
-function stackGeom() {
-  const pp = parentPin(), box = $("square"), w = box.clientWidth, vh = pp ? pp.vh : window.innerHeight, y = pp ? pp.y : window.scrollY;
-  // short screens (landscape, small phones): the full image never takes more than 55% of the height
-  // only the image pins: the view row (Art, Compare, Print) and the rating line scroll with the steps (vb = 0)
-  const full = Math.round(Math.min(w, vh * 0.55)), band = Math.min(BAND, full), vb = 0;
-  // the band stays pinned however far you scroll (you see the art while you change settings), unless the screen is so
-  // short (landscape) that it would leave the content under 160 px: then it scrolls away as before
-  const navH = pp ? 0 : $("mNav").getBoundingClientRect().height, pin = vh - navH - (band + vb) >= 160;
-  return { full, band, vb, maxOff: pin ? 0 : band + vb, head: /** @type {HTMLElement} */ (document.querySelector(".v3")).getBoundingClientRect().top + window.scrollY };
-}
+/** Phone: the height that stays pinned at the top of the screen, the job tabs and the workspace under them. */
+const pinnedH = () => $("tabBar").getBoundingClientRect().height + $("square").getBoundingClientRect().height;
+const sq = { timer: 0 };
 function syncSq() {
-  const r = document.documentElement.style, box = $("square");
-  r.setProperty("--vbh", `${$("viewBar").getBoundingClientRect().height}px`);
-  const pp = parentPin(); r.setProperty("--pin", `${pp ? pp.y : 0}px`);
-  if (!phone()) { ["--sqv", "--sqfull", "--sqoff"].forEach(k => r.removeProperty(k)); r.setProperty("--sqh", `${box.getBoundingClientRect().height}px`); document.body.classList.remove("band", "artoff"); deskFit(); return; }
-  const g = sq.g = stackGeom(), y = pp ? pp.y : window.scrollY, at = stackAt(y, g);
-  if (sq.hold != null && Math.abs(y - sq.hold) > 60) { sq.hold = null; snap(); }
-  if (sq.peek != null && Math.abs(y - sq.peek) > 60) { sq.peek = null; snap(); }
-  sq.off = sq.peek != null ? 0 : at.natural;
-  const v = sq.hold != null ? g.full : at.v, off = sq.hold != null ? 0 : sq.off;
-  r.setProperty("--sqfull", `${g.full}px`); r.setProperty("--sqv", `${v}px`); r.setProperty("--sqh", `${v}px`); r.setProperty("--sqoff", `${off}px`);
-  document.body.classList.toggle("band", v < g.full - 1);
-  document.body.classList.toggle("artoff", g.maxOff > 0 && off >= g.maxOff - 1 && !!st.art);
-  // Inspect sizes its view from the square: redraw it quietly once the size has settled (not on every scroll step)
-  if (v !== sq.last) { sq.last = v; clearTimeout(sq.timer); if (st.view === "film" && st.res) sq.timer = window.setTimeout(() => { st.insp.quiet = true; draw(); }, 300); }
+  const r = document.documentElement.style, pp = parentPin(); r.setProperty("--pin", `${pp ? pp.y : 0}px`);
+  if (!phone()) { document.body.classList.remove("nopin"); deskFit(); return; }
+  // a screen so short (landscape) that the pinned workspace would leave the steps under 160 px: it scrolls away
+  const vh = pp ? pp.vh : window.innerHeight, navH = pp ? 0 : $("mNav").getBoundingClientRect().height;
+  document.body.classList.toggle("nopin", vh - navH - pinnedH() < 160);
 }
-/** Desktop: the image is as big as the middle column allows, but never so tall that the rating row under it leaves the
-    window. Everything shown under the image (Inspect controls, the rating row) is measured, not guessed. */
-let deskW = 0;
+/** Desktop: the workspace column is as tall as the window (framed in an ADN page: the height under the page's headers)
+    and the workspace takes what the rows under it leave (bench.css, workspace frame). Framed in a page that cannot be
+    read there is no height to take: the workspace is a square. */
 function deskFit() {
-  const pane = $("paneStage"), cs = getComputedStyle(pane), gap = parseFloat(cs.rowGap) || 10, pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  const shown = ["viewBar", "zoomBox", "chipBar", "viewNote", "rating"].map(id => $(id)).filter(e => e.getClientRects().length && getComputedStyle(e).display !== "none");
-  const other = shown.reduce((a, e) => a + (e.id === "rating" ? $("dRate").getBoundingClientRect().height + 2 : e.getBoundingClientRect().height), 0) + gap * shown.length;
-  const colW = pane.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  // Framed, innerHeight is the frame. Sizing the image from it makes the frame grow on every measure.
-  const pp = parentPin(), room = pp ? pp.vh - pad - other - 2 : window.parent !== window ? colW : window.innerHeight - pad - other - 2;
-  // The 320 px floor is for a short window only; the column width always wins, or the image overlaps the side panes.
-  const w = Math.round(Math.min(colW, Math.max(320, room)));
-  if (w !== deskW) { deskW = w; document.documentElement.style.setProperty("--dw", `${w}px`); clearTimeout(sq.timer); if (st.view === "film" && st.res) sq.timer = window.setTimeout(draw, 150); }
+  const pp = parentPin(), h = pp ? pp.vh : window.parent !== window ? 0 : window.innerHeight, r = document.documentElement.style;
+  if (h) r.setProperty("--wsh", `${h}px`); else r.removeProperty("--wsh");
 }
-["zoomBox", "chipBar", "viewNote", "rating"].forEach(id => new ResizeObserver(() => { if (!phone()) deskFit(); }).observe($(id)));
-/** Animate the next stack change (a tap); scrolling itself is never animated. */
-function snap() { document.body.classList.add("snap"); window.setTimeout(() => document.body.classList.remove("snap"), 260); }
-/** Scroll the page with the stack in its natural place (it does not come back while the page moves up). */
-function pageTo(top) {
-  sq.prog = true; clearTimeout(sq.progT); const end = () => { clearTimeout(sq.progT); sq.progT = window.setTimeout(() => { sq.prog = false; window.removeEventListener("scroll", end); }, 200); };
-  window.addEventListener("scroll", end, { passive: true }); end(); window.scrollTo({ top, behavior: "smooth" });
-}
-new ResizeObserver(syncSq).observe($("viewBar")); window.addEventListener("resize", syncSq); window.addEventListener("scroll", syncSq, { passive: true }); syncSq();
+// Print draws the films at the workspace's size: draw them again once a new size has settled
+new ResizeObserver(() => { if (st.view !== "film" || !st.res) return; clearTimeout(sq.timer); sq.timer = window.setTimeout(draw, 150); }).observe($("square"));
+window.addEventListener("resize", syncSq); window.addEventListener("scroll", syncSq, { passive: true }); syncSq();
 // framed: the page's scroll (any scroller in it) and size move the pinned art
 if (frameEl) try { window.parent.document.addEventListener("scroll", syncSq, { passive: true, capture: true }); window.parent.addEventListener("resize", syncSq); } catch { /* other origin */ }
-// the band opens to the full image on a tap only: a finger that moves (a scroll that starts on the band) leaves it as it is
-let bandTap = /** @type {{ x: number, y: number, t: number } | null} */ (null);
-$("square").addEventListener("pointerdown", e => { bandTap = null; if (!phone() || !document.body.classList.contains("band") || /** @type {HTMLElement} */ (e.target).closest("#drop")) return; e.stopPropagation(); bandTap = { x: e.clientX, y: e.clientY, t: e.timeStamp }; }, true);
-$("square").addEventListener("pointercancel", () => { bandTap = null; }, true);
-$("square").addEventListener("pointerup", e => { const b = bandTap; bandTap = null; if (!b || Math.hypot(e.clientX - b.x, e.clientY - b.y) > 10 || e.timeStamp - b.t > 400) return; e.stopPropagation(); sq.hold = scrollPos(); snap(); syncSq(); }, true);
 // phones: number fields open the number pad
 document.querySelectorAll("input[type=number]").forEach(/** @param {any} i */ i => { i.inputMode = "decimal"; });
-// phones: the rating lives in the Back/Next bar; tapping it opens the details as a sheet.
-function setROpen(o) { st.rOpen = o; $("rating").classList.toggle("open", o); $("mRate").setAttribute("aria-expanded", String(o)); $("dRate").setAttribute("aria-expanded", String(o)); /** @type {HTMLElement} */ ($("dRate").querySelector(".mrarr")).textContent = o ? "▴" : "▾"; /** @type {HTMLElement} */ ($("mRate").querySelector(".mrarr")).textContent = o ? "▴" : "▾"; }
-$("mRate").addEventListener("click", () => setROpen(!st.rOpen)); $("dRate").addEventListener("click", () => setROpen(!st.rOpen)); $("rClose").addEventListener("click", () => setROpen(false));
+// the rating row opens its details under it, in the flow of the rows
+function setROpen(o) { st.rOpen = o; $("rating").classList.toggle("open", o); $("dRate").setAttribute("aria-expanded", String(o)); /** @type {HTMLElement} */ ($("dRate").querySelector(".mrarr")).textContent = o ? "▴" : "▾"; }
+$("dRate").addEventListener("click", () => setROpen(!st.rOpen));
 new ResizeObserver(() => document.documentElement.style.setProperty("--navh", `${$("mNav").getBoundingClientRect().height}px`)).observe($("mNav"));
 $("sideClose").addEventListener("click", () => { document.querySelector(".v3").classList.add("noside"); $("sideOpen").hidden = false; });
 $("sideOpen").addEventListener("click", () => { document.querySelector(".v3").classList.remove("noside"); $("sideOpen").hidden = true; });
@@ -1578,7 +1578,7 @@ function renderNav() {
   $("mProg").querySelectorAll("i").forEach((b, j) => { b.className = j + 1 === n ? "cur" : stepDone(j + 1) ? "done" : ""; });
   $("mProg").setAttribute("aria-valuenow", String([1, 2, 3, 4].filter(stepDone).length)); $("mProg").setAttribute("aria-label", `Step ${n} of 4`);
   const nx = $("mNext"); nx.textContent = n < 4 ? `Next: ${STEPS[n + 1]} →` : "Download films ↓"; nx.disabled = n === 1 && !st.art;
-  // narrow phones: the step name does not fit beside the rating chip
+  // narrow phones: the step name does not fit beside Back
   if (phone() && nx.scrollWidth > nx.clientWidth + 1) nx.textContent = n < 4 ? "Next →" : "Download ↓";
   nx.setAttribute("aria-label", n < 4 ? `Next: ${STEPS[n + 1]}` : "Download films");
 }
@@ -1604,6 +1604,8 @@ function renderSummaries() {
   $("step3Sum").textContent = st.res ? `${methodName()} · ${N} screen${N === 1 ? "" : "s"}${ub ? " + base" : ""}${st.autoBy ? " · by Auto" : ""}` : "Auto runs when you add art";
   $("step4Sum").textContent = st.res ? `${plates().length} films · ${$("shirts").value} prints${mirrored() ? " · mirrored" : ""}` : "Films, mix sheet, Photoshop file";
   renderPressTime();
+  // the print size in the corner of the workspace: step 2's width and height, not a control
+  $("sizeBadge").hidden = !st.art; $("sizeBadge").textContent = st.art ? lenText(`${(+$("outW").value).toFixed(1)} × ${(+$("outH").value).toFixed(1)} in`) : "";
   if (st.step) { renderStepRows(); renderNav(); }
   $("teeName").textContent = garmentName();
 }
@@ -1620,16 +1622,14 @@ document.querySelectorAll("#shirtChips button").forEach(b => b.addEventListener(
 
 /** Print rating: stars from the measured scores (plan.printRating), the numbers behind it, and what lowers it most. */
 function renderRating() {
-  // the rating chip in the phone Back/Next bar
-  const line = (num, pct, de, chk, label, facts = "") => { $("mrNum").textContent = num; $("mrFill").style.width = pct; $("mrDe").textContent = de; const c = $("mrChk"); c.textContent = chk; c.className = "mrchk" + (/✓/.test(chk) ? " ok" : /!/.test(chk) ? " bad" : "");
-    // the desktop rating row under the image: the same, with on press, aligned and in tolerance inline
-    $("drNum").textContent = num; $("drFill").style.width = pct; $("drFacts").innerHTML = facts || esc(de || "No rating yet"); const dc = $("drChk"); dc.textContent = chk; dc.className = c.className; $("dRate").setAttribute("aria-label", `${label}. Click for details.`);
-    $("mRate").setAttribute("aria-label", `${label}${de ? `, ${de.replace(/^· /, "")}` : ""}. Tap for details.`); renderNav(); };
-  if (!st.res) { $("rStars").textContent = "–"; $("rFill").style.width = "0%"; $("rFacts").innerHTML = ""; $("rWhy").textContent = st.art ? "Separating…" : "No art yet. The rating shows here after the separation."; line("–", "0%", st.art ? "Separating…" : "No rating yet", "", "No print rating yet"); return; }
+  // the rating row: the facts (on press, aligned, in tolerance) on a desktop, one short line on a phone
+  const line = (num, pct, de, chk, label, facts = "") => { $("drNum").textContent = num; $("drFill").style.width = pct; $("drFacts").innerHTML = facts; $("mrDe").textContent = de;
+    const c = $("drChk"); c.textContent = chk; c.className = "mrchk" + (/✓/.test(chk) ? " ok" : /!/.test(chk) ? " bad" : "");
+    $("dRate").setAttribute("aria-label", `${label}${de ? `, ${de.replace(/^· /, "")}` : ""}. Push for details.`); renderNav(); };
+  if (!st.res) { $("rStars").textContent = "–"; $("rFacts").innerHTML = ""; $("rWhy").textContent = st.art ? "Separating…" : "No art yet. The rating shows here after the separation."; line("–", "0%", st.art ? "Separating…" : "No rating yet", "", "No print rating yet"); return; }
   const s = st.res.stats, failed = st.checksFailed || 0, R = printRating({ onPress: s.robustMean, aligned: s.mean, inTol: s.cmcWithin2, failedChecks: failed });
-  $("rStars").textContent = R.stars.toFixed(1); $("rFill").style.width = `${R.stars / 5 * 100}%`; $("rStarRow").setAttribute("aria-label", `${R.stars.toFixed(1)} of 5 stars`);
+  $("rStars").textContent = R.stars.toFixed(1);
   $("rating").className = "rating " + (R.stars >= 4 ? "ok" : R.stars >= 3 ? "warn" : "bad") + (st.rOpen ? " open" : "");
-  $("mRate").dataset.r = R.stars >= 4 ? "ok" : R.stars >= 3 ? "warn" : "bad";
   // every quality number is a model number until the press run: the phone chip says so beside
   // the stars; the desktop row has no width to spare at 1280 px (its facts fill it), so its first fact is named "Model"
   // (the on-press number) and the open panel writes "Model, on press" in full
@@ -1645,7 +1645,7 @@ function renderRating() {
   else if (cheap && N > 2) why = `You can remove the ${st.inks[cheap[1]].name} screen. The print stays almost the same.`;
   else if (R.stars < 3 && N < 12) why = "The inks cannot make all the colors in the art. Add one screen.";
   else if (R.stars >= 4) why = "Ready to print. Download the films in step 4.";
-  else why = "Turn on Differences. If the bright areas are important, add one screen.";
+  else why = "Examine Compare. If the areas that are different are important, add one screen.";
   $("rWhy").textContent = why + (st.calib ? "" : " Typical plastisol values until you calibrate your press (Shop setup).");
 }
 
@@ -1653,7 +1653,7 @@ function renderRating() {
     details (coverage, mesh, angle, cost to remove, grams to mix, ink, Lab, hex, smallest dot); [−] folds it. Each shows the
     order, coverage, mesh and angle, Lab, what removing it costs, and the ink to mix. Flash and cure are printed on the films. Tap a card to see its film in Print; drag the ⠿ grip (or use the arrow keys on it) to change the order. */
 function renderScreens() {
-  const box = $("scrList"); $("cardsBox").hidden = !st.res; if (!st.res) { box.innerHTML = ""; box.dataset.html = ""; $("chipBar").hidden = true; return; }
+  const box = $("scrList"); $("cardsBox").hidden = !st.res; if (!st.res) { box.innerHTML = ""; box.dataset.html = ""; $("scrRow").hidden = $("chipInfo").hidden = true; renderAccent(); return; }
   const pl = plates(), N = st.inks.length, costs = st.res.costs || [], sel = st.view === "film" && !st.insp.all;
   const area = +$("outW").value * (+$("outW").value * st.prev.H / st.prev.W), shirts = Math.max(1, +$("shirts").value || 100);
   const how = p => st.mode === "spot" ? "solid" : $("screening").value === "fm" || st.mode === "index" ? "index" : `${p.angle}°`;
@@ -1671,10 +1671,13 @@ function renderScreens() {
       ${open ? `<dl class="sdet">${[["Coverage", `${(cov * 100).toFixed(1)}%`], ["Mesh", String(p.mesh)], ["Angle", how(p)], ["If removed", p.ub ? "base" : costs[p.idx] != null ? `+${Math.max(0, costs[p.idx]).toFixed(1)} ΔE` : "–"], ["Mix", `${g} g`], ["Ink", code || (p.ub ? "White base" : "Mix to match")], ["Lab D65", p.lab.map(v => Math.round(v)).join(" · ")], ["Hex", hex.toUpperCase()], ["Smallest dot", `${Math.round((p.minDot || 0) * 100)}%`]].map(([a, b]) => `<div><dt>${a}</dt><dd>${esc(b)}</dd></div>`).join("")}</dl>${prodRow(p, i)}` : ""}</div>`; }).join("");
   // rebuild only when something changed: replacing the buttons mid-click would lose the click
   if (box.dataset.html !== html) { box.innerHTML = html; box.dataset.html = html; attachHelp(box); }
-  // the same screens as color squares under the zoom row while step 3 is open: tap one to see its film, drag to reorder
-  const bar = $("chipBar"); bar.hidden = st.step !== 3 || !!st.fold;
+  // the screens row, the last row under the workspace: the same screens as color squares. Tap one to see its film and,
+  // in the row under the squares, its name, coverage and mesh (again: all the films, the row closes); drag to reorder
+  const bar = $("chipBar"), info = $("chipInfo"), ip = st.chipInfo == null ? null : pl.find(p => prodKey(p.ub ? N : p.idx) === st.chipInfo); $("scrRow").hidden = false;
+  info.hidden = !ip;
+  if (ip) { const html = `<i style="background:${rgb2hex(lab2rgb(ip.lab))}"></i><b>${ip.order} · ${esc(ip.name)}</b><span>${((ip.ub ? st.res.ubPct : st.res.covPct[ip.idx]) * 100).toFixed(1)}% · ${ip.mesh} mesh</span>`; if (info.dataset.html !== html) { info.innerHTML = html; info.dataset.html = html; } }
   const chips = pl.map(p => { const i = p.ub ? N : p.idx, lt = p.lab[0] > 62;
-    return `<button type="button" class="chip${lt ? " lt" : ""}${sel && st.chan === i ? " cur" : ""}" role="listitem" data-chip="${i}"${p.ub ? "" : ` data-ink="${p.idx}"`} style="--ink:${rgb2hex(lab2rgb(p.lab))}" title="${esc(p.name)}${p.ub ? "" : " · drag to change the order"}" aria-label="${p.order}. ${esc(p.name)}">${p.order}</button>`; }).join("");
+    return `<button type="button" class="chip${lt ? " lt" : ""}${sel && st.chan === i ? " cur" : ""}" role="listitem" aria-pressed="${p === ip}" data-chip="${i}"${p.ub ? "" : ` data-ink="${p.idx}"`} style="--ink:${rgb2hex(lab2rgb(p.lab))}" title="${esc(p.name)}${p.ub ? "" : " · drag to change the order"}" aria-label="${p.order}. ${esc(p.name)}">${p.order}</button>`; }).join("");
   if (bar.dataset.html !== chips) { bar.innerHTML = chips; bar.dataset.html = chips; }
   if (st.refocus != null) { const g = /** @type {HTMLElement} */ (box.querySelector(`[data-grip="${st.refocus}"]`)); st.refocus = null; if (g) g.focus(); }
   const hidNames = pl.filter(p => st.hidden.has(p.ub ? N : p.idx)).map(p => p.name);
@@ -1706,8 +1709,9 @@ $("scrList").addEventListener("change", e => {
 $("scrList").addEventListener("keydown", e => { const t = /** @type {any} */ (e.target); if (t.dataset && t.dataset.rename != null && e.key === "Enter") { e.preventDefault(); t.blur(); }
   if (t.dataset && t.dataset.rename != null && e.key === "Escape") { t.value = t.defaultValue; t.blur(); } });
 /** Open a screen and show only its film in Print; the same screen again folds it and shows all the films. */
-function focusScreen(i) {
+function focusScreen(i, info = false) {
   if (st.openRows.has(i)) { st.openRows.clear(); st.insp.all = true; } else { st.openRows = new Set([i]); st.chan = i; st.insp.all = false; }
+  st.chipInfo = info && st.openRows.has(i) ? prodKey(i) || null : null; // a screen square also opens its information row
   if (st.view !== "film") setView("film"); else draw();
 }
 /** Merge a screen into another: its ink goes, the other is kept (locked) and takes its colors in the new separation. */
@@ -1784,12 +1788,12 @@ $("scrList").addEventListener("keydown", e => {
     let before = null; for (const c of bar.querySelectorAll("[data-ink]")) { if (c === d.c) continue; const r = c.getBoundingClientRect(); if (e.clientY < r.top || (e.clientY <= r.bottom && e.clientX < r.left + r.width / 2)) { before = c; break; } }
     if (before) { if (d.slot.nextSibling !== before) bar.insertBefore(d.slot, before); } else if (bar.lastElementChild !== d.slot) bar.appendChild(d.slot); });
   const end = e => { if (!d || e.pointerId !== d.id) return; const x = d; d = null; clearTimeout(x.timer); x.c.classList.remove("armed");
-    if (!x.drag) { if (e.type === "pointerup") focusScreen(+x.c.dataset.chip); return; }
+    if (!x.drag) { if (e.type === "pointerup") focusScreen(+x.c.dataset.chip, true); return; }
     const to = [...bar.children].filter(c => c === x.slot || (c.hasAttribute("data-ink") && c !== x.c)).indexOf(x.slot);
     x.c.classList.remove("lift"); x.c.style.removeProperty("left"); x.c.style.removeProperty("top"); x.slot.remove();
     if (!moveInk(+x.c.dataset.ink, to)) { bar.dataset.html = ""; renderScreens(); } };
   bar.addEventListener("pointerup", end); bar.addEventListener("pointercancel", end);
-  bar.addEventListener("click", e => { const c = /** @type {any} */ (e.target).closest && /** @type {any} */ (e.target).closest("[data-chip]"); if (c && e.detail === 0) focusScreen(+c.dataset.chip); });
+  bar.addEventListener("click", e => { const c = /** @type {any} */ (e.target).closest && /** @type {any} */ (e.target).closest("[data-chip]"); if (c && e.detail === 0) focusScreen(+c.dataset.chip, true); });
   bar.addEventListener("keydown", e => { const c = /** @type {any} */ (e.target).closest && /** @type {any} */ (e.target).closest("[data-ink]"); if (!c) return;
     const k = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0; if (!k) return; e.preventDefault(); moveInk(+c.dataset.ink, +c.dataset.ink + k); }); }
 /* ───────────── Add ink: from my inks (the shop's library), from colors the art is missing, or a custom color ─────────────
@@ -1818,7 +1822,7 @@ function aiRender() {
   const used = new Set(st.inks.map(inkKey)), selK = new Set(ai.sel.map(inkKey)), q = String($("aiQ").value || "").trim().toLowerCase();
   if (ai.tab === "lib") $("aiGrid").innerHTML = st.library.map((i, j) => ({ i, j })).filter(({ i }) => !q || `${i.name} ${i.system || ""} ${i.code || ""}`.toLowerCase().includes(q)).map(({ i, j }) => {
     const hex = rgb2hex(lab2rgb(calibratedLab(i))), on = selK.has(inkKey(i)), u = used.has(inkKey(i));
-    return `<button type="button" class="aiink${on ? " sel" : ""}${u ? " used" : ""}" data-lib="${j}" style="background:${hex};color:${lightHex(hex) ? "#001089" : "#ffffff"}" aria-pressed="${on}"${u ? ' title="Already a screen"' : ""}>${on ? '<i class="ck">✓</i>' : ""}<b>${esc(i.name)}</b>${i.code ? `<span>${esc([i.system, i.code].filter(Boolean).join(" "))}</span>` : ""}</button>`; }).join("") || '<p class="small">No ink matches. Edit my inks to add yours.</p>';
+    return `<button type="button" class="aiink${on ? " sel" : ""}${u ? " used" : ""}" data-lib="${j}" style="background:${hex};color:${lightHex(hex) ? "#2a2a2d" : "#ffffff"}" aria-pressed="${on}"${u ? ' title="Already a screen"' : ""}>${on ? '<i class="ck">✓</i>' : ""}<b>${esc(i.name)}</b>${i.code ? `<span>${esc([i.system, i.code].filter(Boolean).join(" "))}</span>` : ""}</button>`; }).join("") || '<p class="small">No ink matches. Edit my inks to add yours.</p>';
   if (ai.tab === "art") { const m = missingColors(); ai.miss = m;
     $("aiMiss").innerHTML = m.length ? m.map((c, j) => { const hex = rgb2hex(lab2rgb(c.lab)), use = c.near && c.near.de <= 8, on = selK.has(inkKey(aiFromMiss(c)));
       return `<div class="aimrow"><span class="aisw" style="background:${hex}"></span><span class="aimt"><b>${hex.toUpperCase()}</b><span>${c.area < 0.001 ? "under 0.1" : (c.area * 100).toFixed(1)}% of the art · now off by ${c.miss.toFixed(0)} ΔE · ${use ? `closest ink: ${esc(c.near.ink.name)} (ΔE ${c.near.de.toFixed(1)})` : `no close ink: added as a mix${c.near ? ` (closest ${esc(c.near.ink.name)}, ΔE ${c.near.de.toFixed(0)})` : ""}`}</span></span><button type="button" class="aimadd" data-miss="${j}" aria-pressed="${on}">${on ? "✓ Added" : "Add"}</button></div>`; }).join("")
@@ -1852,7 +1856,6 @@ async function reproofHidden() {
 }
 
 // Print toggles: Compare draws the art left of a line you drag, Show differences draws the difference map
-$("diffT").addEventListener("change", e => { st.diff = e.target.checked; if (!st.compare) setView("cmp"); else draw(); });
 { const cv = $("view0"); let on = false, raf = 0;
   const moveSplit = x => { const r = cv.getBoundingClientRect(); st.splitX = Math.max(0.02, Math.min(0.98, (x - r.left) / r.width)); cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); };
   cv.addEventListener("pointerdown", e => { if (st.view !== "sim" || !st.compare) return; on = true; cv.setPointerCapture(e.pointerId); moveSplit(e.clientX); });
@@ -1863,14 +1866,13 @@ $("diffT").addEventListener("change", e => { st.diff = e.target.checked; if (!st
 document.addEventListener("dragover", e => e.preventDefault());
 document.addEventListener("drop", e => { if (/** @type {any} */ (e.target).closest && /** @type {any} */ (e.target).closest("#drop")) return; e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
 
-// Keys for pros: 1 2 3 views, F fit, + − zoom, D differences, C compare (not while typing in a field)
+// Keys for pros: 1 2 3 views, F fit, + − zoom, C compare (not while typing in a field)
 document.addEventListener("keydown", e => {
   const t = /** @type {any} */ (e.target); if (e.metaKey || e.ctrlKey || e.altKey || (t && (t.closest("input, select, textarea") || t.isContentEditable)) || document.querySelector("dialog[open]")) return;
   const k = e.key.toLowerCase();
   if (k === "1") setView("orig"); else if (k === "2") setView("cmp"); else if (k === "3") setView("film");
   else if (k === "f" && st.view === "film") { st.insp.z = "fit"; draw(); }
   else if ((k === "+" || k === "=") && st.view === "film") zoomAt(1, 0.5, 0.5); else if ((k === "-" || k === "_") && st.view === "film") zoomAt(-1, 0.5, 0.5);
-  else if (k === "d") { $("diffT").checked = !$("diffT").checked; $("diffT").dispatchEvent(new Event("change")); }
   else if (k === "c") setView(st.compare ? "film" : "cmp");
   else return;
   e.preventDefault();
@@ -1892,7 +1894,7 @@ if (window.parent !== window) {
   document.body.classList.add("framed");
   window.addEventListener("scroll", () => { if (window.scrollY) window.scrollTo(0, 0); }, { passive: true }); // the page scrolls, not the frame (iOS bounces frames)
   // On the tool's full page (not the wall) the page's program header carries the title and the setup gear.
-  try { if (!window.parent.location.pathname.endsWith("/wall")) document.body.classList.add("inheader"); } catch { /* other origin */ }
+  try { if (!window.parent.location.pathname.endsWith("/wall")) document.body.classList.add("inheader"); placeSide(); } catch { /* other origin */ }
   $("helpAbout").hidden = false;
   $("helpAbout").querySelector("a").addEventListener("click", e => { e.preventDefault(); $("helpPanel").close(); window.parent.location.hash = "about"; });
 }
@@ -1967,18 +1969,19 @@ $("tfMake").addEventListener("click", async () => {
   catch (e) { note(e.message || String(e), "bad"); } finally { $("tfMake").disabled = false; }
 });
 
-/* ───────────── Job state: undo, the last job kept, several jobs open ─────────────
+/* ───────────── Job state: undo, the jobs kept, job tabs ─────────────
    A job's state is its settings (job.SETTINGS, as settings() reads them), the print method, the inks and screen
    names, the art adjustments and where each setting came from. Every settled change (a control, an ink, a separation)
-   adds one undo step. The open jobs are kept in this browser (IndexedDB "sepbench", store "jobs"): each job's state and
-   its art as the PNG or JPEG file you dropped (the art is left out when the browser has no room; the job then says so).
-   New, Close and switching jobs save the job first and open the other one in a fresh page. */
+   adds one undo step. One tab is one job. The open job is the page; each other job waits as a record (its state and its
+   art as a PNG) in memory, with its own undo steps. The records are also kept in this browser (IndexedDB "sepbench",
+   store "jobs"; the art is left out when the browser has no room, and the job then says so), and the tab order and the
+   open tab in localStorage (sepbench.tabs, sepbench.job), so every tab comes back after a reload. */
 const SET_ID = { garment: "garment", widthIn: "outW", dpi: "dpi", lpi: "lpi", angle: "angle", dot: "dotShape", screening: "screening", press: "press", gain: "gain", minDot: "minDot", maxDot: "maxDot",
   scatter: "scatter", choke: "choke", trap: "trap", indexDpi: "indexDpi", stackLimit: "stackLimit", inkSource: "palSrc", forceWhite: "forceWhite", underbase: "ubMode", ubStrength: "ubStrength",
   opacity: "opacity", smooth: "smooth", rare: "rare", cleanSpot: "cleanSpot", solidDetail: "solidDetail", shirts: "shirts", mirror: "mirror", setupMin: "setupMin", perHour: "perHour", fabric: "fabric",
   minPpi: "minPpi", offCentreIn: "offCentreIn", manualMaxLpi: "manualMaxLpi", smallScreenPct: "smallScreenPct" };
 function jobState() {
-  return { v: 1, s: settings(), method: st.method, tone: st.tone, inks: st.inks.map(i => ({ ...i })), prod: [...st.prod], adj: { ...st.adj }, adjOff: st.adjOff, src: { ...st.src }, autoBy: !!st.autoBy, salience: st.salience, profile: st.shop.active };
+  return { v: 1, s: settings(), method: st.method, tone: st.tone, inks: st.inks.map(i => ({ ...i })), prod: [...st.prod], adj: { ...st.adj }, adjOff: st.adjOff, src: { ...st.src }, autoBy: !!st.autoBy, autoBest: st.autoBest, salience: st.salience, profile: st.shop.active };
 }
 /** Put a saved state into the controls and the job; rerun: separate again with its inks. */
 async function applyJobState(j, rerun = true) {
@@ -1989,20 +1992,20 @@ async function applyJobState(j, rerun = true) {
   for (const k of FORMAT_KEYS) $(FORMAT_IDS[k]).checked = !!s.formats[k];
   if (!methodKey()) $("nInks").value = String(s.screens === "auto" ? 6 : s.screens);
   st.inks = (j.inks || []).map(i => ({ ...i })); st.prod = new Map(j.prod || []); st.adj = { ...ADJ0, ...(j.adj || {}) }; st.adjOff = !!j.adjOff; st.src = { ...(j.src || {}) };
-  st.autoBy = !!j.autoBy; st.salience = j.salience ?? 1; if (j.profile !== undefined) { st.shop.active = j.profile; saveShop(); }
+  st.autoBy = !!j.autoBy; st.autoBest = j.autoBest || null; st.salience = j.salience ?? 1; if (j.profile !== undefined) { st.shop.active = j.profile; saveShop(); }
   renderAdjust(); renderFabric(); renderAutoState(); renderProfiles(); renderSummaries(); syncH(); syncCm(); markShirt();
   if (rerun && st.art) { st.artAdj = null; st.prev = downsample(artIn(), PREV_MAX); renderArtCard(); st.why = "undo"; await run(false); }
 }
 const undo = { past: /** @type {string[]} */ ([]), future: /** @type {string[]} */ ([]), applying: false, t: 0 };
 function renderUndo() { $("undo").disabled = undo.past.length < 2; $("redo").disabled = !undo.future.length; }
 /** Records the job's state when it settled (after a change, when no separation is running), as one undo step. */
-function noteState() { clearTimeout(undo.t); undo.t = window.setTimeout(() => {
-  if (undo.applying || st.busy || st.autoRunning) { noteState(); return; }
+function noteState() { clearTimeout(undo.t); undo.t = window.setTimeout(() => { if (undo.applying || st.busy || st.autoRunning) noteState(); else recordState(); }, 400); }
+function recordState() {
   const j = JSON.stringify(jobState()); if (undo.past[undo.past.length - 1] === j) return;
-  undo.past.push(j); if (undo.past.length > 50) undo.past.shift(); undo.future = []; renderUndo(); saveJob(); }, 400); }
+  undo.past.push(j); if (undo.past.length > 50) undo.past.shift(); undo.future = []; renderUndo(); saveJob(); }
 /** Undo: the current state goes on the redo list and the one before it comes back. Redo: the reverse. */
 async function stepUndo(back) {
-  if (back ? undo.past.length < 2 : !undo.future.length) return;
+  if (changing || (back ? undo.past.length < 2 : !undo.future.length)) return;
   if (back) undo.future.push(/** @type {string} */ (undo.past.pop())); else undo.past.push(/** @type {string} */ (undo.future.pop()));
   undo.applying = true; try { await applyJobState(JSON.parse(undo.past[undo.past.length - 1])); setStatus(back ? "Undone. Redo puts the change back." : "Redone.", "ok"); }
   finally { undo.applying = false; renderUndo(); saveJob(); }
@@ -2011,59 +2014,195 @@ $("undo").addEventListener("click", () => stepUndo(true)); $("redo").addEventLis
 document.addEventListener("keydown", e => { const t = /** @type {any} */ (e.target); if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || (t && t.closest && t.closest("input[type=text], textarea")) || document.querySelector("dialog[open]")) return;
   e.preventDefault(); stepUndo(!e.shiftKey); });
 // a settled change anywhere in the job: the steps, the finer settings, step 4 and the shop's check limits
-["paneSteps", "paneSide", "shopPanel"].forEach(id => $(id).addEventListener("change", e => { const t = /** @type {any} */ (e.target); if (t && t.id && !["jobSel", "profSel", "profDefault", "units", "tfParam", "profName", "tfValues"].includes(t.id)) noteState(); }));
+["paneSteps", "paneSide", "shopPanel"].forEach(id => $(id).addEventListener("change", e => { const t = /** @type {any} */ (e.target); if (t && t.id && !["profSel", "profDefault", "units", "tfParam", "profName", "tfValues"].includes(t.id)) noteState(); }));
 $("paneSteps").addEventListener("click", () => noteState());
 
-/* the open jobs, in IndexedDB */
-const DB = { db: /** @type {Promise<IDBDatabase> | null} */ (null) };
+/* the jobs, in IndexedDB */
+const TAB_MAX = 12, CLOSE_UNDO_MS = 10000, LIMIT_NOTE = `${TAB_MAX} jobs are open. Close a job to open a new one.`;
+const DB = { db: /** @type {Promise<IDBDatabase> | null} */ (null), failed: false, noRoom: false };
 function jobsDB() { return DB.db ??= new Promise((res, rej) => { const r = indexedDB.open("sepbench", 1); r.onupgradeneeded = () => r.result.createObjectStore("jobs", { keyPath: "id" }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
 async function jobsDo(mode, fn) { const db = await jobsDB(); return new Promise((res, rej) => { const tx = db.transaction("jobs", mode), q = fn(tx.objectStore("jobs")); tx.oncomplete = () => res(q && q.result); tx.onerror = tx.onabort = () => rej(tx.error || new Error("The browser did not save the job.")); }); }
-const jobsAll = () => /** @type {Promise<any[]>} */ (jobsDo("readonly", o => o.getAll()).catch(() => []));
-st.jobId = store.get("job", null) || `job-${Date.now()}`; store.set("job", st.jobId);
-let saveT = 0;
-/** Save the job (state and art) as the open job; the art only when it changed. */
-function saveJob(now = false) { clearTimeout(saveT); const go = async () => {
-  if (!st.art && !st.res && undo.past.length < 2) return;
-  // the art as the separation reads it (work size, after Fix the art), as PNG: encoded again only when it changed
-  if (st.art && !st.sample && st.savedArt !== st.art) { const a = st.art, c = document.createElement("canvas"); c.width = a.W; c.height = a.H; c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(a.rgba), a.W, a.H), 0, 0);
-    st.savedBlob = await new Promise(r => c.toBlob(r, "image/png")); st.savedArt = a; }
-  const art = st.art && !st.sample ? st.savedBlob || null : null;
-  const rec = { id: st.jobId, name: st.artFile ? st.artFile.name : "New job", state: jobState(), at: Date.now(), artFile: st.artFile && !st.sample ? { ...st.artFile } : null, sample: !!st.sample };
-  try { await jobsDo("readwrite", o => o.put({ ...rec, art, artMissing: !!st.art && !st.sample && !art })); }
-  catch { try { await jobsDo("readwrite", o => o.put({ ...rec, art: null, artMissing: !!st.art && !st.sample })); jobNote("This browser has no room to keep the art. The settings are kept: drop the art again after a reload."); }
-    catch { jobNote("This browser does not keep jobs (a private window?). Download the films before you close the page."); } }
-  renderJobs(); };
-  if (now) return go(); saveT = window.setTimeout(go, 300); return Promise.resolve(); }
-function jobNote(t) { $("jobNote").textContent = t; $("jobNote").hidden = !t; }
-async function renderJobs() {
-  const all = (await jobsAll()).sort((a, b) => a.at - b.at), sel = $("jobSel");
-  if (!all.some(j => j.id === st.jobId)) all.push({ id: st.jobId, name: st.artFile ? st.artFile.name : "New job" });
-  sel.innerHTML = all.map((j, i) => `<option value="${esc(j.id)}">${i + 1}. ${esc(j.name)}</option>`).join(""); sel.value = st.jobId; $("jobClose").disabled = false;
+/** The browser does not keep jobs (a private window, storage full or blocked): the tabs work from memory, and the page says so once. */
+function storeFailed() { if (DB.failed) return; DB.failed = true; jobNote("This browser cannot save jobs (a private window, or its storage is full or blocked). The tabs work until you close the page. Download the films before you close it."); }
+/** The status line under the tabs. brief: it goes after 10 seconds. The "Job closed. Undo" part is apart (closeJob). */
+let noteT = 0;
+function jobNote(t, brief = false) { clearTimeout(noteT); $("jobMsg").textContent = t; $("jobNote").hidden = !t && $("jobClosed").hidden; if (t && brief) noteT = window.setTimeout(() => jobNote(""), CLOSE_UNDO_MS); }
+
+/* Job tabs: tabs is the order on the strip; rec is the job's record while it is not the open job (null: a new job) */
+/** undo: its undo steps. auto: what Auto said about it (why, the fewer-screens list), and its open step, while the page is open.
+ *  @type {{ id: string, name: string, rec: any, undo?: { past: string[], future: string[] }, auto?: { why: any, fewer: any, note: string, step: number, picked: boolean } }[]} */
+let tabs = [];
+/** The tab closed last, while Undo can bring it back: its place, and the "New job" tab that took the place of the last tab. */
+let closed = /** @type {{ tab: typeof tabs[0], i: number, filler: string, t: number } | null} */ (null);
+const tabOf = id => tabs.find(t => t.id === id);
+const newId = () => { let id = `job-${Date.now()}`; while (tabOf(id) || (closed && closed.tab.id === id)) id += "0"; return id; };
+const jobName = () => st.artFile ? st.artFile.name : "New job";
+/** A tab shows its place and the art's file name without the extension. */
+const tabLabel = name => String(name).replace(/\.[A-Za-z0-9]{1,5}$/, "");
+function saveTabs() { store.set("tabs", tabs.map(t => ({ id: t.id, name: t.name }))); store.set("job", st.jobId); }
+/** The open tab at the last draw of the strip, and its width. */
+let tabOn = { id: "", w: 0 };
+function renderTabs() {
+  const cur = tabOf(st.jobId), box = $("tabs"); if (!cur) return;
+  if (cur.name !== jobName()) { cur.name = jobName(); saveTabs(); }
+  const full = tabs.length >= TAB_MAX;
+  box.innerHTML = tabs.map((t, i) => { const n = esc(tabLabel(t.name)), on = t === cur;
+    return `<div class="tab${on ? " on" : ""}" role="tab" aria-selected="${on}" data-id="${esc(t.id)}"><button type="button" class="tname" title="${n}">${i + 1} · ${n}</button><button type="button" class="tclose" aria-label="Close ${n}">×</button></div>`; }).join("")
+    + `<button type="button" class="tabnew" id="tabNew" aria-label="New job"${full ? ` title="${LIMIT_NOTE}" disabled` : ""}>+</button>`;
+  // the open tab stays in view, clear of the + that stays at the right end; on a phone 36 px of the next tab stay in
+  // view too, so the strip shows that it scrolls
+  const on = /** @type {HTMLElement} */ (box.querySelector(".on")), a = box.getBoundingClientRect(), b = on.getBoundingClientRect();
+  const clear = 45 + (phone() && on.nextElementSibling !== $("tabNew") ? 36 : 0);
+  if (b.left < a.left) box.scrollLeft -= a.left - b.left; else if (b.right > a.right - clear) box.scrollLeft += b.right - a.right + clear;
+  // a phone's open tab is as wide as its name (bench.css). When another tab opens, the two widths change in 0.2 s.
+  if (tabOn.id && tabOn.id !== cur.id && phone() && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const was = [...box.querySelectorAll(".tab")].find(e => /** @type {HTMLElement} */ (e).dataset.id === tabOn.id), opt = { duration: 200, easing: "ease" };
+    if (b.width > 121) on.animate([{ width: "120px" }, { width: b.width + "px" }], opt);
+    if (was && tabOn.w > 121) was.animate([{ width: tabOn.w + "px" }, { width: "120px" }], opt);
+  }
+  tabOn = { id: cur.id, w: b.width };
 }
-async function openJob(id) { await saveJob(true); store.set("job", id); location.reload(); }
-$("jobSel").addEventListener("change", () => openJob($("jobSel").value));
-$("jobNew").addEventListener("click", () => openJob(`job-${Date.now()}`));
-$("jobClose").addEventListener("click", async () => {
-  const all = (await jobsAll()).filter(j => j.id !== st.jobId).sort((a, b) => b.at - a.at);
-  await jobsDo("readwrite", o => o.delete(st.jobId)).catch(() => {}); store.set("job", all.length ? all[0].id : `job-${Date.now()}`); location.reload();
-});
-/** At start: open the job that was open (its settings, inks and art), or a new job with the default profile. */
-async function restoreJob() {
-  const rec = await jobsDo("readonly", o => o.get(st.jobId)).catch(() => null);
-  if (!rec) { const d = st.shop.defaultProfile && allProfiles().find(p => p.name === st.shop.defaultProfile); if (d) { applyProfile(d); profNote(`New job: started with ${d.name}.`, "ok"); }
-    undo.past = [JSON.stringify(jobState())]; renderUndo(); renderJobs(); return; }
+/** What the job's tab shows: the view, the zoom and its place, the Compare line, the open screen and the open step. */
+const viewState = () => ({ v: document.body.dataset.view || "film", z: st.insp.z, cx: st.insp.cx, cy: st.insp.cy, splitX: st.splitX, rows: [...st.openRows], chan: st.chan, chip: st.chipInfo, step: st.step });
+/** Put a tab's view back, after its job is separated again. Press goes back as Print. */
+function applyView(w) {
+  Object.assign(st.insp, { z: w.z, cx: w.cx, cy: w.cy }); st.splitX = w.splitX;
+  st.openRows = new Set(w.rows.filter(i => i <= st.inks.length)); st.insp.all = !st.openRows.size;
+  if (st.openRows.size) { st.chan = w.chan; st.chipInfo = w.chip; }
+  setView(w.v === "press" ? "film" : w.v, true); if (w.step && w.step !== st.step) setStep(w.step, false);
+}
+/** The open job as a record: its state, its view, and its art as a PNG (encoded again only when the art changed). */
+async function jobRecord(auto = autoLive()) {
+  const a = st.art, keep = !!a && !st.sample;
+  const rec = { id: st.jobId, name: jobName(), state: jobState(), view: viewState(), at: Date.now(), artFile: keep && st.artFile ? { ...st.artFile } : null, sample: !!st.sample, auto, art: /** @type {Blob | null} */ (null), artMissing: false };
+  if (keep && st.savedArt !== a) { const c = document.createElement("canvas"); c.width = a.W; c.height = a.H; c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(a.rgba), a.W, a.H), 0, 0);
+    rec.art = await new Promise(r => c.toBlob(r, "image/png")); if (st.art === a) { st.savedBlob = rec.art; st.savedArt = a; } }
+  else if (keep) rec.art = st.savedBlob || null;
+  rec.artMissing = keep && !rec.art; return rec;
+}
+/** Keep a record in this browser. No room for the art: the record without it. No storage at all: the page says so once. */
+async function keepRecord(rec) {
+  try { await jobsDo("readwrite", o => o.put(rec)); }
+  catch { try { await jobsDo("readwrite", o => o.put({ ...rec, art: null, artMissing: rec.artMissing || !!rec.art }));
+      if (rec.art && !DB.noRoom) { DB.noRoom = true; jobNote("This browser has no room to keep the art. The settings are kept: drop the art again after a reload."); } }
+    catch { storeFailed(); } }
+}
+let saveT = 0, saveN = 0;
+/** Save the open job (state and art): its tab's record, and the copy in this browser. A save that a newer save
+    overtook while its art was encoded is dropped. */
+function saveJob(now = false, auto = /** @type {boolean | undefined} */ (undefined)) { clearTimeout(saveT); const go = async () => {
+  if (!st.art && !st.res && undo.past.length < 2) return;
+  const n = ++saveN, t = tabOf(st.jobId), rec = await jobRecord(auto ?? autoLive()); if (n !== saveN) return;
+  if (t) t.rec = rec; await keepRecord(rec); };
+  if (now) return go(); saveT = window.setTimeout(go, 300); return Promise.resolve(); }
+/** The page as a new job has it: no art, no separation, the standard settings. The shop's settings stay. */
+async function clearJob() {
+  Object.assign(st, JOB0()); Object.assign(st.insp, { z: "fit", cx: null, cy: null, all: true, quiet: false, view: null }); st.insp.tok++;
+  restorePristine(); await applyJobState(BLANK, false);
+  setView("film"); setStep(1, false); syncH(); renderSummaries(); renderUnits();
+}
+/** Leave the open job: its Auto stops, a separation in progress ends first (its result belongs to this job), then the
+    job is kept as its tab's record with its undo steps. A job left while Auto worked runs Auto again when it opens. */
+async function leaveJob() {
+  const t = tabOf(st.jobId), auto = autoLive();
+  if (auto || st.autoRunning) { st.autoTok++; st.autoRunning = false; $("auto").disabled = false; }
+  adjTok++;
+  while (st.busy || busyN) await new Promise(r => setTimeout(r, 60));
+  clearTimeout(undo.t); if (!auto) recordState();
+  await saveJob(true, auto); if (t) { t.undo = { past: undo.past, future: undo.future }; t.auto = { why: st.autoWhy, fewer: st.fewer, note: $("autoNote").textContent, step: st.step, picked: st.methodPicked }; }
+}
+/** Open a tab's job in the page: its settings, inks and art, or a new job with the default profile.
+    start: the page's first job (the note says what came back). */
+async function openTab(t, start = false) {
+  st.jobId = t.id; saveTabs(); const rec = t.rec; if (!start) jobNote("");
   undo.applying = true;
   try {
-    if (rec.sample) { const a = sampleArt(); st.sample = true; st.artFile = { name: "Sample design", W: 1200, H: 1200, info: "Drop your art in the workspace to replace it." }; setArt(a.rgba, a.W, a.H, false); setStep(3); }
-    else if (rec.art) { const bmp = await createImageBitmap(rec.art), sc = Math.min(1, WORK_MAX / Math.max(bmp.width, bmp.height)), W = Math.round(bmp.width * sc), H = Math.round(bmp.height * sc);
-      const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d"); g.drawImage(bmp, 0, 0, W, H);
-      st.artFile = rec.artFile || { name: rec.name, W: bmp.width, H: bmp.height, info: "" }; st.sample = false; setArt(g.getImageData(0, 0, W, H).data, W, H, false); st.savedArt = st.art; st.savedBlob = rec.art; setStep(3); }
-    await applyJobState(rec.state, false);
-    if (st.art) { st.artAdj = null; st.prev = downsample(artIn(), PREV_MAX); renderArtCard(); st.why = "restored job"; await run(!st.inks.length); }
-    jobNote(rec.artMissing ? `Restored ${rec.name}: the settings only. The art was not kept: drop it again.` : `Restored ${rec.name} as you left it.`);
-  } catch (e) { jobNote(`The last job could not be restored (${e.message}). It starts new.`); logError(e.message, "restoreJob"); }
+    await clearJob(); renderTabs();
+    if (!rec) { const d = st.shop.defaultProfile && allProfiles().find(p => p.name === st.shop.defaultProfile); if (d) { applyProfile(d); profNote(`New job: started with ${d.name}.`, "ok"); } }
+    else {
+      if (rec.sample) { const a = sampleArt(); st.sample = true; st.artFile = { name: "Sample design", W: 1200, H: 1200, info: "Drop your art in the workspace to replace it." }; setArt(a.rgba, a.W, a.H, false); setStep(3, start); }
+      else if (rec.art) { const bmp = await createImageBitmap(rec.art), sc = Math.min(1, WORK_MAX / Math.max(bmp.width, bmp.height)), W = Math.round(bmp.width * sc), H = Math.round(bmp.height * sc);
+        const c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d"); g.drawImage(bmp, 0, 0, W, H);
+        st.artFile = rec.artFile || { name: rec.name, W: bmp.width, H: bmp.height, info: "" }; st.sample = false; setArt(g.getImageData(0, 0, W, H).data, W, H, false); st.savedArt = st.art; st.savedBlob = rec.art; setStep(3, start); }
+      await applyJobState(rec.state, false); const a = t.auto; if (a) st.methodPicked = a.picked;
+      if (st.art) { st.artAdj = null; st.prev = downsample(artIn(), PREV_MAX); renderArtCard(); st.why = "restored job"; if (rec.auto) autoSettings(true); else await run(!st.inks.length); }
+      if (a && st.res && !rec.auto) { st.autoWhy = a.why; st.fewer = a.fewer && { ...a.fewer, prev: st.prev }; /* the same art, drawn again */ $("autoNote").textContent = a.note; if (a.step) setStep(a.step, false); renderSummaries(); }
+      if (rec.view && st.res && !rec.auto) applyView(rec.view);
+      if (rec.artMissing) jobNote(`Restored ${rec.name}: the settings only. The art was not kept: drop it again.`); else if (start) jobNote(`Restored ${rec.name} as you left it.`, true);
+    }
+  } catch (e) { jobNote(`The job could not be restored (${e.message}). It starts new.`); logError(e.message, "openTab"); }
   finally { undo.applying = false; }
-  undo.past = [JSON.stringify(jobState())]; renderUndo(); renderJobs();
+  // the tab's own undo steps; the last one is the job as it is now
+  const now = JSON.stringify(jobState()), u = t.undo;
+  undo.past = u && u.past.length ? [...u.past.slice(0, -1), now] : [now]; undo.future = u ? u.future : []; renderUndo(); renderTabs();
+}
+/* One job change at a time: a click on the strip while one is in progress does nothing (start-up is the first). The
+   page takes no input until the change is done, so nothing can start a separation for one job and end it in the next. */
+let changing = true;
+async function changeJob(fn) {
+  if (changing) return; changing = true; const box = $("tabs"), had = box.contains(document.activeElement), parts = [document.querySelector(".v3"), document.querySelector(".mhead"), $("mNav")];
+  box.setAttribute("aria-busy", "true"); for (const e of parts) /** @type {Element} */ (e).toggleAttribute("inert", true);
+  try { await fn(); } catch (e) { console.error(e); }
+  finally { changing = false; box.removeAttribute("aria-busy"); for (const e of parts) /** @type {Element} */ (e).toggleAttribute("inert", false);
+    if (had) /** @type {HTMLElement} */ (box.querySelector(".on .tname")).focus(); }
+}
+const openJob = id => { const t = tabOf(id); return t && id !== st.jobId ? changeJob(async () => { await leaveJob(); await openTab(t); }) : Promise.resolve(); };
+const newJob = () => changeJob(async () => {
+  if (tabs.length >= TAB_MAX) return;
+  await leaveJob(); const t = { id: newId(), name: "New job", rec: null }; tabs.push(t); await openTab(t);
+  if (tabs.length >= TAB_MAX) jobNote(LIMIT_NOTE);
+});
+/** The job closed last goes for good: from this browser too. */
+function forgetClosed() {
+  if (!closed) return; clearTimeout(closed.t); const id = closed.tab.id; closed = null;
+  jobsDo("readwrite", o => o.delete(id)).catch(() => { }); store.set("closed", null);
+  $("jobClosed").hidden = true; $("jobNote").hidden = !$("jobMsg").textContent;
+}
+/** X on a tab: the job closes at once. For 10 seconds, or until the next close, Undo brings it back; its record stays
+    in this browser that long. The tab before it opens (the mock's rule); the last tab leaves one new job. */
+const closeJob = id => changeJob(async () => {
+  const i = tabs.findIndex(t => t.id === id), t = tabs[i], open = id === st.jobId; if (!t) return;
+  if (open) await leaveJob();
+  forgetClosed(); tabs.splice(i, 1); let filler = "";
+  if (!tabs.length) { filler = newId(); tabs.push({ id: filler, name: "New job", rec: null }); }
+  closed = { tab: t, i, filler, t: 0 }; store.set("closed", t.id);
+  if (open) await openTab(tabs[Math.max(0, i - 1)]); else { saveTabs(); renderTabs(); }
+  $("jobClosed").hidden = false; $("jobNote").hidden = false;
+  // the 10 seconds start when the line shows, not while the next job is separated again
+  if (closed && closed.tab === t) closed.t = window.setTimeout(forgetClosed, CLOSE_UNDO_MS);
+});
+/** Undo on the "Job closed" line: the job is back in its place, open, with its art, settings and undo steps. */
+const undoClose = () => changeJob(async () => {
+  const c = closed; if (!c) return;
+  if (tabs.length >= TAB_MAX && !c.filler) { jobNote(LIMIT_NOTE); return; }
+  await leaveJob(); clearTimeout(c.t); closed = null; store.set("closed", null); $("jobClosed").hidden = true;
+  // the new job that took the last tab's place goes again, unless it was used
+  const f = c.filler && tabOf(c.filler); if (f && !f.rec) tabs.splice(tabs.indexOf(f), 1);
+  tabs.splice(Math.min(c.i, tabs.length), 0, c.tab); await openTab(c.tab);
+});
+$("jobUndo").addEventListener("click", undoClose);
+$("tabs").addEventListener("click", e => {
+  const b = /** @type {HTMLElement} */ (e.target).closest("button"), tab = b && /** @type {HTMLElement | null} */ (b.closest(".tab")); if (!b) return;
+  if (!tab) newJob(); else if (b.classList.contains("tclose")) closeJob(tab.dataset.id); else openJob(tab.dataset.id);
+});
+// keys on the strip: the arrows move between the tabs, Delete closes the tab
+$("tabs").addEventListener("keydown", e => {
+  const tab = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest(".tab")); if (!tab) return;
+  if (e.key === "Delete") { e.preventDefault(); closeJob(tab.dataset.id); return; }
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const names = /** @type {HTMLElement[]} */ ([...$("tabs").querySelectorAll(".tname")]), n = names[names.indexOf(/** @type {HTMLElement} */ (tab.querySelector(".tname"))) + (e.key === "ArrowRight" ? 1 : -1)];
+  if (n) { e.preventDefault(); n.focus(); }
+});
+/** At start: every tab is back in its order (jobs stored before there were tabs: after them, oldest first), and the
+    job that was open opens. A job closed just before the page was left goes for good. */
+async function startJobs() {
+  /** @type {any[]} */ let all = []; try { all = await jobsDo("readonly", o => o.getAll()); } catch { storeFailed(); }
+  const gone = store.get("closed", null); if (gone) { all = all.filter(j => j.id !== gone); jobsDo("readwrite", o => o.delete(gone)).catch(() => { }); store.set("closed", null); }
+  const byId = new Map(all.map(j => [j.id, j])), list = store.get("tabs", null), open = store.get("job", null);
+  tabs = (Array.isArray(list) ? list : []).filter(t => t && typeof t.id === "string" && t.id !== gone).map(t => ({ id: t.id, name: byId.has(t.id) ? byId.get(t.id).name : "New job", rec: byId.get(t.id) || null }));
+  for (const j of all.sort((a, b) => a.at - b.at)) if (!tabOf(j.id)) tabs.push({ id: j.id, name: j.name || "New job", rec: j });
+  if (!tabOf(open) && (!tabs.length || (typeof open === "string" && open !== gone))) tabs.push({ id: typeof open === "string" && open !== gone ? open : newId(), name: "New job", rec: null });
+  try { await openTab(tabOf(open) || tabs[0], true); } finally { changing = false; }
 }
 /** ?screen=N: open screen N of the restored job (print order, 1 = first) and show only its film in Print. */
 function openUrlScreen() {
@@ -2073,8 +2212,24 @@ function openUrlScreen() {
   jobNote(pl.length ? `?screen=${q}: this job has screens 1 to ${pl.length}.` : `?screen=${q}: this job has no screens yet. Separate the art first.`);
 }
 document.body.dataset.view = st.view; setStep(1, false); syncH(); renderSummaries(); renderUnits(); draw();
+/* A new job, for clearJob. BLANK: its state, the page's controls as they start, before any job is put into them.
+   PRISTINE: the job's part of the page as it starts (the workspace, the steps, Advanced, the phone's bottom bar): each
+   element's attributes, a field's value, and the text of an element that holds no other element. Putting these back
+   shows in a tab what a new page shows. Not in it: the tab strip and its status line, the theme switch, and whether
+   Advanced is open (the page's, not the job's). */
+const { profile: _shopProfile, ...BLANK } = jobState();
+const PRISTINE = /** @type {any[]} */ (Array.from(document.querySelectorAll("#paneStage *, #paneSteps *, #paneSide *, #mNav *")))
+  .filter(e => !e.closest("#tabBar, #jobNote, #themeSeg, #sideOpen, #sideClose"))
+  .map(e => ({ e, at: [...e.attributes].map(a => [a.name, a.value]), text: e.children.length ? null : e.textContent, v: "value" in e && e.type !== "file" ? e.value : null, c: !!e.checked }));
+function restorePristine() {
+  for (const { e, at, text, v, c } of PRISTINE) { if (!e.isConnected) continue;
+    for (const a of [...e.attributes]) if (!at.some(([n]) => n === a.name)) e.removeAttribute(a.name);
+    for (const [n, x] of at) if (e.getAttribute(n) !== x || e.tagName === "CANVAS") e.setAttribute(n, x); // a canvas is cleared by its size
+    if (text != null && (e.children.length || e.textContent !== text)) e.textContent = text;
+    if (v != null && e.value !== v) e.value = v; if ("checked" in e) e.checked = c; }
+}
 // the start-up guard in index.html stops waiting once the last job is back (or a new job has its default profile)
-restoreJob().then(openUrlScreen).catch(e => logError(e.message, "restoreJob")).finally(() => { /** @type {any} */ (window).sepReady = true; });
+startJobs().then(openUrlScreen).catch(e => logError(e.message, "startJobs")).finally(() => { /** @type {any} */ (window).sepReady = true; });
 
 // tests/cli-parity.cjs draws the sample design with this, to compare the sep CLI with the page on the same art
 export { sampleArt };

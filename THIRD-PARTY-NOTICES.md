@@ -759,7 +759,7 @@ copy of the Program in return for a fee.
 - License: MIT
 - Source: https://github.com/Microsoft/onnxruntime
 - Files: src/vendor/ort.wasm.min.mjs, src/vendor/ort-wasm-simd-threaded.mjs, src/vendor/ort-wasm-simd-threaded.wasm
-- License text: https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/LICENSE (the npm package ships none)
+- License text: https://cdn.jsdelivr.net/gh/microsoft/onnxruntime@v1.30.0/LICENSE (the npm package ships none)
 
 ```text
 MIT License

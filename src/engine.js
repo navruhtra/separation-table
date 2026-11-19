@@ -319,7 +319,7 @@ export function librarySubset(samples, library, k, fixedLabs, garmentLab, n, lam
     if (bi < 0) break; chosen.push(bi);
   }
   let best = cost(chosen);
-  for (let pass = 0, passes = +(globalThis.process?.env?.SWAPS || 1); pass < passes; pass++) for (let p = 0; p < chosen.length; p++) {
+  for (let pass = 0, passes = opts.swaps === false ? 0 : +(globalThis.process?.env?.SWAPS || 1); pass < passes; pass++) for (let p = 0; p < chosen.length; p++) {
     for (const i of avail) {
       if (chosen.includes(i)) continue;
       const trial = chosen.slice(); trial[p] = i; const e = cost(trial);
@@ -979,10 +979,13 @@ export function trapSpot(cov, N, W, H, r) {
   }
   return out;
 }
-/** Each screen moved by its own (dx, dy) in pixels, sampled bilinearly so sub-pixel moves give partial coverage at edges. */
-export function shiftCov(cov, N, W, H, offs) {
+/** Each screen moved by its own (dx, dy) in pixels, sampled bilinearly so sub-pixel moves give partial coverage at edges.
+    only (optional): { stride, alpha } computes just the pixels a scorer reads (every stride-th, opaque); the rest stay 0.
+    The press score reads every 3rd pixel, so it needs a third of the work, with the same values where it reads. */
+export function shiftCov(cov, N, W, H, offs, only = /** @type {{ stride: number, alpha: Uint8Array } | null} */ (null)) {
   const out = new Float32Array(cov.length);
   for (let i = 0; i < N; i++) { const smp = sampler(cov, W, H, N, i), [dx, dy] = offs[i];
+    if (only) { for (let p = 0; p < W * H; p += only.stride) { if (only.alpha[p] < 128) continue; const x = p % W, y = (p - x) / W; out[p * N + i] = smp((x - dx + 0.5) / W, (y - dy + 0.5) / H); } continue; }
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) out[(y * W + x) * N + i] = smp((x - dx + 0.5) / W, (y - dy + 0.5) / H); }
   return out;
 }
@@ -1467,4 +1470,104 @@ export function edgeGeometry(snap, frac, W, H) {
     let lo = -hw, hi = hw; for (let i = 0; i < 24; i++) { const c = (lo + hi) / 2; if (1 - cdf(c) > t) lo = c; else hi = c; }
     geo[p * 3] = nx; geo[p * 3 + 1] = ny; geo[p * 3 + 2] = (lo + hi) / 2; }
   return geo;
+}
+
+/* ───────────── Transparent process inks (CMYK) ─────────────
+   Process inks are transparent: where their dots overlap the print shows the overprint (M over Y is red), not the top
+   ink. Rotated screens overlap at random, so a spot prints every combination S of its dots with the Demichel weight
+   prod(a in S) prod(1 - a not in S). Each combination's colour is its measured overprint: the 16 CMYK solids and
+   overprints of FOGRA39L (ISO 12647-2:2004/Amd 1, coated paper, D50 2°; color.org/chardata/FOGRA39L.txt), carried from
+   paper onto the white base or the shirt as a transmittance per XYZ channel (XYZ: yellow and green lie outside sRGB).
+   An opaque ink (a highlight white) covers what was printed before it. Mixed in Yule–Nielsen space like every print
+   here. The benchmark referee (benchmark/score.mjs processScore) uses the same table. Paper values are a placeholder
+   until a shirt chart is measured. */
+export const FOGRA39 = { paper: [95, 0, -2], "": [95, 0, -2], C: [55, -37, -50], M: [48, 74, -3], Y: [89, -5, 93], K: [16, 0, 0],
+  MY: [47, 68, 48], CY: [50, -65, 27], CM: [24, 22, -46], CK: [10.41, -8.20, -10.25], MK: [10.42, 13.93, 1.35], YK: [15.71, -3.08, 11.68],
+  MYK: [11.33, 8.61, 7.28], CYK: [11.32, -12.88, 3.56], CMK: [7.88, 5.79, -5.94], CMY: [23, 0, 0], CMYK: [8.71, -0.07, 2.06] };
+/** @param {ArrayLike<number>} lab */
+export const lab2xyz = lab => { const L = lab[0], a = lab[1], b = lab[2]; const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - b / 200, fi = t => t > 0.206893 ? t * t * t : (t - 16 / 116) / 7.787; return [fi(fx) * XN, fi(fy), fi(fz) * ZN]; };
+/** @param {ArrayLike<number>} xyz */
+export const xyz2lab = xyz => { const X = xyz[0], Y = xyz[1], Z = xyz[2]; const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116, fx = f(X / XN), fy = f(Y), fz = f(Z / ZN); return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)]; };
+const PAPER_XYZ = lab2xyz(FOGRA39.paper), TRANS = new Map();
+const procKey = s => "CMYK".split("").filter(c => s.includes(c)).join("");
+const transOf = key => { if (!TRANS.has(key)) TRANS.set(key, lab2xyz(FOGRA39[key]).map((v, k) => Math.min(1, Math.max(0, v) / PAPER_XYZ[k]))); return TRANS.get(key); };
+/** XYZ of one combination (bit mask over the inks, in print order) over a substrate. procs[i]: "C"/"M"/"Y"/"K" or null (opaque). */
+export function processCombo(mask, procs, inkXYZ, sub) {
+  let c = sub.slice(), run = "";
+  for (let i = 0; i < procs.length; i++) { if (!(mask >> i & 1)) continue; if (procs[i]) run += procs[i]; else { run = ""; c = inkXYZ[i].slice(); } }
+  if (run) { const t = transOf(procKey(run)); for (let k = 0; k < 3; k++) c[k] *= t[k]; }
+  return c;
+}
+/** The forward model: { onW, onS } are every combination's colour over the white base and over the shirt in YN space;
+    mix(a, u, out) fills out with the YN-space mix of dot areas a over base share u. */
+export function processModel(inkLabs, procs, garmentLab, n, whiteLab = [96, 0, 1.5]) {
+  const N = inkLabs.length, M = 1 << N, inkXYZ = inkLabs.map(lab2xyz), sW = lab2xyz(whiteLab), sS = lab2xyz(garmentLab), yn = v => Math.pow(Math.max(0, v), 1 / n);
+  const onW = new Float64Array(M * 3), onS = new Float64Array(M * 3);
+  for (let s = 0; s < M; s++) { const a = processCombo(s, procs, inkXYZ, sW), b = processCombo(s, procs, inkXYZ, sS); for (let k = 0; k < 3; k++) { onW[s * 3 + k] = yn(a[k]); onS[s * 3 + k] = yn(b[k]); } }
+  const mix = (a, u, out) => { out[0] = out[1] = out[2] = 0;
+    for (let s = 0; s < M; s++) { let w = 1; for (let i = 0; i < N; i++) { w *= s >> i & 1 ? a[i] : 1 - a[i]; if (w === 0) break; } if (w === 0) continue;
+      out[0] += w * (u * onW[s * 3] + (1 - u) * onS[s * 3]); out[1] += w * (u * onW[s * 3 + 1] + (1 - u) * onS[s * 3 + 1]); out[2] += w * (u * onW[s * 3 + 2] + (1 - u) * onS[s * 3 + 2]); }
+    return out; };
+  const toLab = m => xyz2lab([Math.pow(Math.max(0, m[0]), n), Math.pow(Math.max(0, m[1]), n), Math.pow(Math.max(0, m[2]), n)]);
+  return { N, mix, toLab };
+}
+/* Solve dot areas for transparent process inks. The mix is affine in each ink's own dot with the others held, so each
+   ink's best dot is a closed form (a 1-D quadratic in YN space, clamped to [0, 1]): coordinate descent, a few sweeps.
+   econ: a small cost per unit of ink, so a dark is built with black rather than three inks (grey component
+   replacement); limit: the press's ink limit on the process inks' total (240%), a penalty past it. Solved on the
+   colour-table nodes the art touches, read per pixel by trilinear interpolation, like separateSim. Returns printed
+   dot areas (no hidden ink: each process screen prints the dot solved). */
+export function separateProcess({ px, alpha, W, H, inkLabs, procs, garmentLab, n, base, limit = 2.4, econ = 0.002, lutG = 25, labRefine = +(globalThis.process?.env?.PROCREFINE ?? 3) }) {
+  const model = processModel(inkLabs, procs, garmentLab, n), N = inkLabs.length, G = lutG, f0 = (G - 1) / 255, P = W * H;
+  const need = new Uint8Array(G * G * G);
+  for (let p = 0; p < P; p++) { if (alpha[p] < 8) continue; const r0 = Math.min(G - 2, (px[p * 3] * f0) | 0), g0 = Math.min(G - 2, (px[p * 3 + 1] * f0) | 0), b0 = Math.min(G - 2, (px[p * 3 + 2] * f0) | 0), o = (r0 * G + g0) * G + b0;
+    need[o] = need[o + 1] = need[o + G] = need[o + G + 1] = need[o + G * G] = need[o + G * G + 1] = need[o + G * G + G] = need[o + G * G + G + 1] = 1; }
+  const lut = new Float32Array(G * G * G * N), a = new Float64Array(N), m0 = new Float64Array(3), m1 = new Float64Array(3), best = new Float64Array(N), tryA = new Float64Array(N);
+  const isProc = procs.map(Boolean), dark = garmentLab[0] < 55;
+  const err = (t, u, x) => { model.mix(x, u, m0); let e = 0; for (let k = 0; k < 3; k++) e += (m0[k] - t[k]) ** 2; let s = 0; for (let i = 0; i < N; i++) { e += econ * x[i]; if (isProc[i]) s += x[i]; } if (s > limit) e += 4 * (s - limit) ** 2; return e; };
+  const descend = (t, u, x) => {
+    for (let sweep = 0; sweep < 40; sweep++) { let moved = 0;
+      for (let i = 0; i < N; i++) { const keep = x[i]; x[i] = 0; model.mix(x, u, m0); x[i] = 1; model.mix(x, u, m1);
+        let dd = 0, rd = 0; for (let k = 0; k < 3; k++) { const d = m1[k] - m0[k]; dd += d * d; rd += (m0[k] - t[k]) * d; }
+        // the ink limit enters the quadratic while it binds: 4 (s0 + x - L)^2
+        let s0 = 0; for (let j = 0; j < N; j++) if (j !== i && isProc[j]) s0 += x[j];
+        let v = dd > 1e-12 ? -(rd + econ / 2) / dd : 0; v = Math.min(1, Math.max(0, v));
+        if (isProc[i] && s0 + v > limit) { const v2 = (-(rd + econ / 2) + 4 * (limit - s0)) / (dd + 4); v = Math.min(1, Math.max(0, v2)); }
+        x[i] = v; moved = Math.max(moved, Math.abs(v - keep)); }
+      if (moved < 1e-4) break; }
+  };
+  const t = new Float64Array(3); let prev = null;
+  for (let r = 0; r < G; r++) for (let g = 0; g < G; g++) for (let b = 0; b < G; b++) { if (!need[(r * G + g) * G + b]) continue;
+    const R = Math.round(r * 255 / (G - 1)), Gg = Math.round(g * 255 / (G - 1)), B = Math.round(b * 255 / (G - 1)), tl = rgb2lab(R, Gg, B), tx = lab2xyz(tl);
+    for (let k = 0; k < 3; k++) t[k] = Math.pow(Math.max(0, tx[k]), 1 / n);
+    const u = base && dark ? baseFraction(tl, base.strength) : dark ? 0 : 1;
+    // two starts, kept the better: the neighbouring node's answer (smooth tables) and no ink
+    let be = Infinity; for (const start of prev ? [prev, null] : [null]) { if (start) tryA.set(start); else tryA.fill(0); descend(t, u, tryA); const e = err(t, u, tryA); if (e < be) { be = e; best.set(tryA); } }
+    // the quadratic step measures error in YN-space XYZ, where blues weigh little; finish with the perceptual error
+    // (Lab distance) by a golden-section search per ink, a few sweeps from that answer
+    if (labRefine) { const tlab = tl, le = x => { const l = model.toLab(model.mix(x, u, m0)); let e = (l[0] - tlab[0]) ** 2 + (l[1] - tlab[1]) ** 2 + (l[2] - tlab[2]) ** 2; let s = 0; for (let i = 0; i < N; i++) { e += 50 * econ * x[i]; if (isProc[i]) s += x[i]; } if (s > limit) e += 400 * (s - limit) ** 2; return e; };
+      for (let sweep = 0; sweep < labRefine; sweep++) for (let i = 0; i < N; i++) { let lo = 0, hi = 1; const gr = 0.6180339887;
+        // the ink limit is hard here: a process ink's dot stops where the stack reaches it
+        if (isProc[i]) { let so = 0; for (let j = 0; j < N; j++) if (j !== i && isProc[j]) so += best[j]; hi = Math.min(1, Math.max(0, limit - so)); }
+        let x1 = hi - gr * (hi - lo), x2 = lo + gr * (hi - lo); best[i] = x1; let f1 = le(best); best[i] = x2; let f2 = le(best);
+        for (let it = 0; it < 18; it++) { if (f1 < f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - gr * (hi - lo); best[i] = x1; f1 = le(best); } else { lo = x1; x1 = x2; f1 = f2; x2 = lo + gr * (hi - lo); best[i] = x2; f2 = le(best); } }
+        const cand = (lo + hi) / 2, keep = best[i]; best[i] = cand; const fc = le(best); best[i] = keep; const prevV = prev ? prev[i] : 0; void prevV; best[i] = fc <= Math.min(f1, f2) ? cand : f1 < f2 ? x1 : x2; } }
+    lut.set(best, ((r * G + g) * G + b) * N); prev = Float64Array.from(best); }
+  const cov = new Float32Array(P * N), f = (G - 1) / 255;
+  for (let p = 0; p < P; p++) { if (alpha[p] < 8) continue; const R = px[p * 3] * f, Gc = px[p * 3 + 1] * f, Bc = px[p * 3 + 2] * f, r0 = Math.min(G - 2, R | 0), g0 = Math.min(G - 2, Gc | 0), b0 = Math.min(G - 2, Bc | 0), fr = R - r0, fg = Gc - g0, fb = Bc - b0;
+    for (let c = 0; c < 8; c++) { const dr = c >> 2 & 1, dg = c >> 1 & 1, db = c & 1, w = (dr ? fr : 1 - fr) * (dg ? fg : 1 - fg) * (db ? fb : 1 - fb); if (!w) continue; const o = (((r0 + dr) * G + g0 + dg) * G + b0 + db) * N; for (let i = 0; i < N; i++) cov[p * N + i] += w * lut[o + i]; } }
+  return cov;
+}
+/** In-register and on-press scores of transparent process films: mean ΔE00 over every 3rd opaque pixel (stride),
+    each shift in shifts moving every screen by its offset (null: in register). img: the in-register picture. */
+export function processScoreE({ printed, ub, N, W, H, lab, alpha, inkLabs, procs, garmentLab, n, shifts = [null], wantImg = false, stride = 3 }) {
+  const model = processModel(inkLabs, procs, garmentLab, n), a = new Float64Array(N), mx = new Float64Array(3), P = W * H, img = wantImg ? new Uint8ClampedArray(P * 4) : null;
+  let total = 0, p95 = 0;
+  for (const offs of shifts) { const pr = offs ? shiftCov(printed, N, W, H, offs, { stride, alpha }) : printed; let sum = 0, cnt = 0; const all = [];
+    for (let p = 0; p < P; p++) { const scored = p % stride === 0 && alpha[p] >= 128; if (!scored && !(img && !offs)) continue;
+      for (let i = 0; i < N; i++) a[i] = pr[p * N + i]; const l = model.toLab(model.mix(a, ub ? ub[p] : 0, mx));
+      if (img && !offs) { const rgb = lab2rgb(l); img[p * 4] = rgb[0]; img[p * 4 + 1] = rgb[1]; img[p * 4 + 2] = rgb[2]; img[p * 4 + 3] = 255; }
+      if (scored) { const e = de2000(lab[p * 3], lab[p * 3 + 1], lab[p * 3 + 2], l[0], l[1], l[2]); sum += e; cnt++; all.push(e); } }
+    total += sum / Math.max(1, cnt); all.sort((x, y) => x - y); p95 += all[Math.floor(all.length * 0.95)] || 0; }
+  return { mean: total / shifts.length, p95: p95 / shifts.length, img };
 }

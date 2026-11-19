@@ -12,6 +12,20 @@ entries below are grouped by the day each change merged (Pacific time).
 Left out: changes to the whole ADN site (menus, tool page header and
 footer, search) and internal-only changes.
 
+- Phone: a job tab keeps its view and zoom, and the open tab shows
+  its name. The rating row is higher. On a short phone the zoom
+  slider shows without a scroll. On the ADN tool page the theme
+  switch is in Shop setup
+- The two help lines in the empty art box are smaller
+- The Differences switch is removed from the workspace. Compare
+  shows the art and the print side by side
+- New look and layout. New colors, with a light and a dark theme. A
+  workspace in the centre: the art on the garment color, with the rows
+  under it. A screens row with a suggested screen when the art needs
+  one. Advanced Settings as rows that show what Auto chose. A phone
+  layout with the workspace pinned at the top. Job tabs above the
+  workspace: one tab for each job, up to 12, all kept after a reload,
+  with Undo and Redo at the end of the tab strip
 - Version number shown in Help, written into separation.json and printed
   on the job sheet. MIT license, NOTICE, this changelog, and a README
   status section built from the test output.

@@ -1,7 +1,7 @@
 // @ts-check
 // The separation pipeline as one pure function, shared by the worker (UI) and bench-test.mjs (regression tests).
 import * as E from "./engine.js";
-import { printRating, screenGain } from "./plan.js";
+import { printRating, USUAL_SCREENS } from "./plan.js";
 
 // Base-aware appearance applies when an underbase is printed on a dark shirt.
 // One definition of a dark shirt (also used by the UI's automatic underbase).
@@ -49,7 +49,7 @@ export function choosePalette(m, samples) {
       const cand = ["oklab", "lab"].map(metric => { const idx = E.librarySubset(samples, lib, k, fixed, m.garmentLab, m.n, selLam(m), null, { spotMetric: metric });
         return { idx, metric, e: E.spotError(samples, fixed.concat(idx.map(i => lib[i].lab)), m.garmentLab, metric) }; }).sort((x, y) => x.e - y.e)[0];
       pick = cand.idx; m.spotMetric = cand.metric;
-    } else pick = E.librarySubset(samples, lib, k, fixed, m.garmentLab, m.n, selLam(m), baseOpt(m));
+    } else pick = E.librarySubset(samples, lib, k, fixed, m.garmentLab, m.n, selLam(m), baseOpt(m), { swaps: m.swaps });
     chosen = pick.map(i => ({ ...lib[i], locked: false }));
   } else {
     // spot v2: the art's own colors by k-means in OKLab (solid plates); otherwise the mixing hull
@@ -155,7 +155,8 @@ function accentAddOption(m, samples, fixed, cur, top, pw, famErr, setGates, lam,
 }
 export function orderInks(inks, order) {
   // process inks print in the standard wet-on-wet order Y, M, C, K
-  if (order === "process") return inks.slice().sort((a, b) => "YMCK".indexOf(a.process ?? "") - "YMCK".indexOf(b.process ?? ""));
+  // process order Y M C K; a highlight white (CMYK on a dark shirt) prints last, on top
+  if (order === "process") { const at = i => i.process ? "YMCK".indexOf(i.process) : 4; return inks.slice().sort((a, b) => at(a) - at(b)); }
   // light to dark, highlight white last
   // dark to light on dark shirts (Wilflex) tested better under misregistration than light to dark (robust 8.96 → 8.90)
   const darkFirst = (order ?? globalThis.process?.env?.ORDER ?? "dark") === "dark";
@@ -187,6 +188,8 @@ function solveCoverage(m, inks) {
   // 8-bit steps break into dots before the lookup (engine DITHER): only once the screens are decided (m.ditherFinal), so
   // the noise cannot tip an ink over the printable share and keep a screen that prints nothing
   if (m.mode === "sim" && m.ditherFinal) args.opts = { ...(args.opts || m.opts || {}), dither: true };
+  // CMYK (transparent process inks): dots solved for their overprints (engine separateProcess), printed as solved
+  if (m.mode === "sim" && m.process) return { cov: E.separateProcess({ px: m.px, alpha: m.alpha, W: m.W, H: m.H, inkLabs: inks.map(i => i.lab), procs: inks.map(i => i.process || null), garmentLab: m.garmentLab, n: m.n, base: m.underbase ? baseOpt(m) : null, limit: m.stackLimit ?? STACK_LIMIT, lutG: (m.opts && m.opts.lutG) || undefined }), spotIdx: null };
   if (m.mode === "sim") return { cov: E.separateSim(args), spotIdx: null };
   if (m.mode === "spot") { const r = E.separateSpot({ ...args, metric: spotV2(m) ? (m.spotMetric || "oklab") : "lab" }); return { cov: r.cov, spotIdx: r.idx }; }
   // index shades on a dark shirt with base: each based ink also prints bare (INDEXSHADE=0 or m.indexShade = false: off)
@@ -269,9 +272,13 @@ export function printedFilms(m, inks, cov) {
   const filmOn = !!(m.film && m.mode === "sim" && m.screening !== "fm");
   if (filmOn) cov = filmLimited(cov, N, m.W, m.H, { ...m.film, minDot: 0, maxDot: 1 });
   // ubIn: a base read from imported films (re-proof, filmimport.js) is used as it is, never built again from the inks
-  const ub = m.ubIn ? Float32Array.from(m.ubIn) : m.underbase && N ? (m.legacyUB ? m.legacyUB(cov, N, P, inkLabs) : E.buildUnderbase(cov, N, P, m.lab, m.ubStrength, { solid: m.mode !== "sim", fade: E.UB_FADE && !m.lite, inkLabs, garmentLab: m.garmentLab, noBase: m.mode === "index" ? m.noBase : null })) : null;
+  // transparent process inks: the base is the print's white (it shows alone where the art is white), laid as the solve
+  // planned it from the art's colour (baseFraction), not from the inks printed on it
+  const procBase = () => { const u = new Float32Array(P), bo = baseOpt(m), st = bo ? bo.strength : m.ubStrength ?? 1; for (let p = 0; p < P; p++) u[p] = E.baseFraction([m.lab[p * 3], m.lab[p * 3 + 1], m.lab[p * 3 + 2]], st); return u; };
+  const ub = m.ubIn ? Float32Array.from(m.ubIn) : m.underbase && N && m.process && isDark(m.garmentLab) ? procBase() : m.underbase && N ? (m.legacyUB ? m.legacyUB(cov, N, P, inkLabs) : E.buildUnderbase(cov, N, P, m.lab, m.ubStrength, { solid: m.mode !== "sim", fade: E.UB_FADE && !m.lite, inkLabs, garmentLab: m.garmentLab, noBase: m.mode === "index" ? m.noBase : null })) : null;
   // Auto's trials (lite) score the films as before the smooth map (step hidden dots), so its ink choice does not move
-  let printed = printedFrom(cov, N, P, m.mode, m.screening || "am", m.overprint || "same", m.rho || 0, ub, m.stackLimit ?? STACK_LIMIT, m.lite && globalThis.process?.env?.LITERAMP !== "1" ? 0 : E.HIDDEN_RAMP);
+  // transparent process inks print the dots as solved (no hidden ink under later dots: the overprint is the colour)
+  let printed = m.process ? Float32Array.from(cov) : printedFrom(cov, N, P, m.mode, m.screening || "am", m.overprint || "same", m.rho || 0, ub, m.stackLimit ?? STACK_LIMIT, m.lite && globalThis.process?.env?.LITERAMP !== "1" ? 0 : E.HIDDEN_RAMP);
   if (filmOn) printed = filmLimited(printed, N, m.W, m.H, { ...m.film, lpi: 0 });
   // The base sits under ink: the solve and the proof never show it alone. Where the press's stack limit trimmed the
   // hidden ink (or a screen's dot came out smaller than the base under it), the base was wider than every dot on it
@@ -280,7 +287,7 @@ export function printedFilms(m, inks, cov) {
   // The proof shows the plan (the inks as solved, before the stack limit trims them), so it keeps the base as planned;
   // the films, the print-on-press score and the screens use the trimmed base.
   const ubPlan = ub ? Float32Array.from(ub) : null;
-  if (ub && m.mode === "sim" && m.trimBase !== false) { const ov = m.overprint || "same";
+  if (ub && m.mode === "sim" && m.trimBase !== false && !m.process) { const ov = m.overprint || "same";
     for (let p = 0; p < P; p++) { let mx = 0, sum = 0, free = 1; for (let i = 0; i < N; i++) { const a = printed[p * N + i]; if (a > mx) mx = a; sum += a; free *= 1 - a; }
       const union = ov === "lock" || ov === "none" ? Math.min(1, sum) : ov === "rotated" ? 1 - free : mx; if (ub[p] > union) ub[p] = union; } }
   return { cov, ub, ubPlan, printed };
@@ -337,11 +344,14 @@ export function evaluate(m, inks, cov) {
   const pxmm0 = m.W / ((m.film && m.film.widthIn || 11) * 25.4), d0 = (m.driftMm || 0) * pxmm0;
   if (m.mode === "sim" && m.screening !== "fm" && m.shiftAll && d0 > 0.05) {
     // Auto compares art types on one footing: halftone screens also move as a whole (edges shift), on top of dot overlap
-    let sm = 0, s95 = 0; const K = 4, rho = (m.rhos || [0, 0.5, 1])[1] ?? 0.5;
+    // screens at different angles (overprint rotated: CMYK, 1-3 colours) overlap at random, as their films are built
+    // (visibleToPrinted "rotated"); read at 0.5 their colour jumped where inks shift a little (streaks in a CMYK sky)
+    let sm = 0, s95 = 0; const K = 4, rho = m.overprint === "rotated" ? 1 : (m.rhos || [0, 0.5, 1])[1] ?? 0.5;
     for (let t = 0; t < K; t++) { const offs = Array.from({ length: N }, (_, i) => { const a = 2.399963 * (i + 1) + t * Math.PI / 2; return [d0 * Math.cos(a), d0 * Math.sin(a)]; });
-      const r = E.robustScore({ ...rbase, printed: E.shiftCov(printed, N, m.W, m.H, offs), rhos: [rho] }); sm += r.mean; s95 += r.p95; }
+      // the shifted films only where the score reads them (every 3rd opaque pixel, robustScore's stride)
+      const r = E.robustScore({ ...rbase, printed: E.shiftCov(printed, N, m.W, m.H, offs, { stride: 3, alpha: m.alpha }), rhos: [rho] }); sm += r.mean; s95 += r.p95; }
     robust = { mean: sm / K, p95: s95 / K };
-  } else if (m.mode === "sim" && m.screening !== "fm") robust = E.robustScore({ ...rbase, printed, rhos: m.rhos || [0, 0.5, 1] });
+  } else if (m.mode === "sim" && m.screening !== "fm") robust = E.robustScore({ ...rbase, printed, rhos: m.overprint === "rotated" ? [1] : m.rhos || [0, 0.5, 1] });
   else {
     // Solid screens (spot, index, FM): move each screen by the press's typical drift in its own direction, four trials,
     // after trapping (spot), and average. Without drift info (old callers, tests) this is the in-register score.
@@ -361,8 +371,13 @@ export function evaluate(m, inks, cov) {
   stacks.sort((a, b) => a - b); const stackP99 = stacks[Math.floor(stacks.length * 0.99)] || 0, stackMax = stacks[stacks.length - 1] || 0;
   const cs = coverageStats(cov, N, P);
   let ubPct = 0; if (ub) { for (let p = 0; p < P; p++) ubPct += ub[p]; ubPct /= P; }
-  return { ub, covPct: cs.pct, covMax: cs.max, ubPct, img: pr0.img, de: pr.de, stackMap,
-    stats: { mean: pr.mean, median: pr.median, p95: pr.p95, within3: pr.within3, cmcMean: pr.cmcMean, cmcP95: pr.cmcP95, cmcWithin1: pr.cmcWithin1, cmcWithin2: pr.cmcWithin2, neutralMean: neutral.mean, neutralMedian: neutral.median, neutralP95: neutral.p95, filteredMean: filtered, robustMean: robust.mean, robustP95: robust.p95, stackP99, stackMax, ...(fadeTails && { fadeTails, viewMean }) } };
+  // transparent process inks: in register and on press scored on their overprints (engine processScoreE), the picture too
+  let procPr = null; if (m.process && m.mode === "sim") { const pb = { printed, ub: ubForProof, N, W: m.W, H: m.H, lab: m.lab, alpha: m.alpha, inkLabs, procs: inks.map(i => i.process || null), garmentLab: m.garmentLab, n: m.n };
+    procPr = E.processScoreE({ ...pb, wantImg: !lite });
+    const shifts = d0 > 0.05 ? Array.from({ length: 4 }, (_, t) => Array.from({ length: N }, (_, i) => { const a = 2.399963 * (i + 1) + t * Math.PI / 2; return [d0 * Math.cos(a), d0 * Math.sin(a)]; })) : [null];
+    const rp = E.processScoreE({ ...pb, ub, shifts }); robust = { mean: rp.mean, p95: rp.p95 }; }
+  return { ub, covPct: cs.pct, covMax: cs.max, ubPct, img: procPr && procPr.img ? procPr.img : pr0.img, de: pr.de, stackMap,
+    stats: { mean: procPr ? procPr.mean : pr.mean, median: pr.median, p95: pr.p95, within3: pr.within3, cmcMean: pr.cmcMean, cmcP95: pr.cmcP95, cmcWithin1: pr.cmcWithin1, cmcWithin2: pr.cmcWithin2, neutralMean: neutral.mean, neutralMedian: neutral.median, neutralP95: neutral.p95, filteredMean: filtered, robustMean: robust.mean, robustP95: robust.p95, stackP99, stackMax, ...(fadeTails && { fadeTails, viewMean }) } };
 }
 export function labOf(px, P) { const lab = new Float32Array(P * 3); for (let j = 0; j < P; j++) lab.set(E.rgb2lab(px[j * 3], px[j * 3 + 1], px[j * 3 + 2]), j * 3); return lab; }
 /* Palette choice scores candidates on a sample of the art's colors, which does not always predict the full separation
@@ -399,10 +414,30 @@ export const PROCESS_INKS = [
   { name: "Process Cyan", lab: [55, -37, -50], process: "C", source: "process" }, { name: "Process Magenta", lab: [48, 74, -3], process: "M", source: "process" },
   { name: "Process Yellow", lab: [89, -5, 93], process: "Y", source: "process" }, { name: "Process Black", lab: [16, 0, 0], process: "K", source: "process" }];
 export const CMYK_INK_LIMIT = 2.4, METHODS = ["sim", "spot", "index", "cmyk", "mono", "duo", "tri"];
+/** One-colour targets: each pixel's tone stretched between the bare shirt and the solid ink (its 1st and 99th percentile
+    lightness to the two ends, tone order kept), as the colour that ink coverage prints there. The solid ink is what the
+    press model shows: a colour ink over a dark shirt without a base shows through at its opacity (0.55). */
+export function monoTones(m, inkLab) {
+  const P = m.W * m.H, n = m.n || 1.7, op = m.opacity ?? 0.55, gm = E.mixFromLab(m.garmentLab, n), im = E.mixFromLab(inkLab, n);
+  const solid = inkLab[0] > 92 || !isDark(m.garmentLab) ? im : im.map((v, c) => op * v + (1 - op) * gm[c]);
+  const S = 256, curve = Array.from({ length: S + 1 }, (_, i) => E.mixToLab(gm.map((g, c) => g + (solid[c] - g) * i / S), n));
+  const Ls = [], up = curve[S][0] >= curve[0][0];
+  for (let p = 0; p < P; p += 3) if (!m.alpha || m.alpha[p] >= 128) Ls.push(m.lab[p * 3]);
+  const so = Float64Array.from(Ls).sort(), aLo = so[Math.floor(0.01 * (so.length - 1))] ?? 0, aHi = so[Math.floor(0.99 * (so.length - 1))] ?? 100;
+  const out = new Float32Array(P * 3);
+  for (let p = 0; p < P; p++) {
+    const t = Math.min(1, Math.max(0, (m.lab[p * 3] - aLo) / Math.max(1e-6, aHi - aLo))), f = up ? t : 1 - t; // the fraction of the way to solid ink
+    const Lt = curve[0][0] + (curve[S][0] - curve[0][0]) * f; let i = 0;
+    while (i < S && (up ? curve[i + 1][0] < Lt : curve[i + 1][0] > Lt)) i++;
+    const a = curve[i], b = curve[Math.min(S, i + 1)], w = b[0] === a[0] ? 0 : Math.min(1, Math.max(0, (Lt - a[0]) / (b[0] - a[0])));
+    out[p * 3] = a[0] + (b[0] - a[0]) * w; out[p * 3 + 1] = a[1] + (b[1] - a[1]) * w; out[p * 3 + 2] = a[2] + (b[2] - a[2]) * w; }
+  return out;
+}
 export function methodSettings(method, m) {
   const dark = isDark(m.garmentLab);
   switch (method) {
-    case "cmyk": return { mode: "sim", k: 4, locked: PROCESS_INKS.map(i => ({ ...i, locked: true })), inks: [], repick: true, forceWhite: "off", screening: "am", overprint: "rotated", stackLimit: CMYK_INK_LIMIT, order: "process" };
+    case "cmyk": { const white = dark ? [{ ...((m.library || []).find(i => i.lab[0] > 92) || { name: "White", lab: [96, 0, 1.5], source: "generic" }), locked: true }] : [];
+      return { mode: "sim", k: 4 + white.length, locked: PROCESS_INKS.map(i => ({ ...i, locked: true })).concat(white), inks: [], repick: true, forceWhite: "off", screening: "am", overprint: "rotated", stackLimit: CMYK_INK_LIMIT, order: "process", process: true }; }
     case "mono": {
       if (!dark) return { mode: "sim", k: 1, forceWhite: "off", overprint: "rotated" };
       const white = (m.library || []).find(i => i.lab[0] > 92) || { name: "White", lab: [96, 0, 1.5], source: "generic" };
@@ -418,21 +453,52 @@ export function methodSettings(method, m) {
    for the screen (proof picture, difference map, press and neutral scores, removal costs). The app runs the core alone
    for a separation it may replace a moment later (an added ink: the mix search and the print-order check follow), and
    finishes only the one it keeps. runSeparation is both, as before. */
-const DROP_GAIN = 0.05;
+const DROP_GAIN = 0.05, METHOD_SMOOTHS = [0.05, 0.25];
 export function runSeparation(m) {
-  const r = finishSeparation(separateCore(m));
+  // a print method's tonal smoothness is picked on the press score (screens moving), as Auto picks it for its own
+  // separations: 10% unless 5% or 25% prints clearly better on the small copy. CMYK on a black shirt wants smoother
+  // maps (kite-black 11.74 -> 10.54 on press at 25%, sunflowers-black 6.18 -> 4.70); the small copy ranked every
+  // method case as the full size did (2026-11-17)
+  // CMYK (m.process) is solved by the process solver from the art's pixels; the smoothness does not enter it (kite-black
+  // and sunflowers-white: the same coverage at 5 / 10 / 25%), so its trials only cost time (kite-black 7.3 -> 3.2 s)
+  if (m.method && !m.process && (m.mode ?? "sim") === "sim" && !m.lite && !m.trialScoresOnly && !m.smoothPicked) {
+    const t = thumb(m, m.autoMax || 240), score = sm => runSeparation({ ...t, smooth: sm, smoothPicked: true, trialScoresOnly: true }).stats.robustMean;
+    let smooth = m.smooth ?? 0.1, best = score(smooth);
+    for (const sm of METHOD_SMOOTHS) if (sm !== smooth) { const s = score(sm); if (s < best - DROP_GAIN) { best = s; smooth = sm; } }
+    return { ...runSeparation({ ...m, smooth, smoothPicked: true }), smooth };
+  }
+  // the set-count checks below read only the inks and the accent hint, so the separation is finished (scored) only once
+  // it is known to be kept: one that the checks change is solved again with the new inks (firefighter-white at 6
+  // screens drops two inks: 9.3 s, of which 2.5 s scored the separation that was then replaced)
+  const core = separateCore(m), r = { inks: core.inks, accentSuggest: core.m.accentSuggest || null };
   // inks the engine picks for a set screen count (a shop's press size): an ink the print is better without on the press
   // score (screens moving) is left out. Picked for the plan, more inks printed worse: undergrowth-white 6.11 / 7.16 /
   // 9.01 on press at 4 / 6 / 8 screens (a photo benchmark that is not in this repository, 2026-11-16).
   // a clear gain only (DROP_GAIN, ΔE00 on the small copy): a hair-thin gain there dropped the brown and tan mixes of
   // 13-sky-gradient-black (art inks) and its greys went 1.97 -> 3.65 at full size
-  if (!m.repick || (m.mode ?? "sim") !== "sim" || m.lite || m.trialScoresOnly || m.method || r.inks.length < 3) return r;
+  // refillPick 0 is the app's quick picture (app.js separate, quick): shown on upload while Auto works, then replaced by
+  // Auto's separation, so the checks would only delay it (firefighter-white: 7.2 s with them)
+  if (!m.repick || (m.mode ?? "sim") !== "sim" || m.lite || m.trialScoresOnly || m.method || m.refillPick === 0 || r.inks.length < 3) return finishSeparation(core);
   const t = thumb(m, m.autoMax || 240), score = inks => runSeparation({ ...t, inks, locked: inks, repick: false, costs: false, dropEmpty: false, opts: { lutG: 13 }, trialScoresOnly: true }).stats.robustMean;
   let inks = r.inks, best = score(inks);
+  // the shelf pick before its swap pass, when it prints better: the swaps serve the plan and can push out an ink the
+  // press needs (kite-black at 6 screens lost Royal: press 5.20, with Royal 4.52)
+  if (m.paletteMode === "library" && !m.inks?.length) { const g = runSeparation({ ...t, swaps: false, trialScoresOnly: true }).inks.map(i => ({ ...i }));
+    if (g.map(i => i.name).join() !== inks.map(i => i.name).join()) { const tr = o => runSeparation({ ...t, inks: o, locked: o, repick: false, costs: false, dropEmpty: false, opts: { lutG: 13 }, trialScoresOnly: true }).stats, a = tr(g), b = tr(inks);
+      // and no worse in register: on 13-sky-gradient-black the small copy rated it better on press while the full-size
+      // print lost colour (0.64 -> 1.74) and press (2.33 -> 2.48)
+      if (a.robustMean < best - DROP_GAIN && a.mean <= b.mean) { inks = g; best = a.robustMean; } } }
   for (;;) { let pick = null;
     for (let i = 0; i < inks.length; i++) { if (inks[i].locked) continue; const o = inks.filter((_, j) => j !== i), s = score(o); if (s < best - DROP_GAIN && (!pick || s < pick.s)) pick = { o, s }; }
     if (!pick) break; inks = pick.o; best = pick.s; }
-  return inks === r.inks ? r : runSeparation({ ...m, inks: inks.map(i => ({ ...i, locked: false })), repick: false });
+  // the accent the plan could not place without harm (r.accentSuggest: kite-black's red stripes at 6 screens) gets a
+  // screen when the press score says so: a free screen, or in place of an ink, on the same clear gain
+  const acc = r.accentSuggest && m.library.find(i => i.name === r.accentSuggest.name);
+  if (acc && !inks.some(i => i.name === acc.name)) { const a = { ...acc, locked: false }, tries = [];
+    if (inks.length < r.inks.length) tries.push(inks.concat([a]));
+    for (let i = 0; i < inks.length; i++) if (!inks[i].locked && inks[i].lab[0] <= 92) tries.push(inks.map((k, j) => j === i ? a : k));
+    for (const o of tries) { const s = score(o); if (s < best - DROP_GAIN) { best = s; inks = o; } } }
+  return inks === r.inks ? finishSeparation(core) : runSeparation({ ...m, inks: inks.map(i => ({ ...i, locked: false })), repick: false });
 }
 export function separateCore(m) {
   const P = m.W * m.H;
@@ -443,6 +509,12 @@ export function separateCore(m) {
   // itself is still chosen from the usual samples, so only a missing accent changes the inks
   if (m.repick && (m.mode ?? "sim") === "sim" && m.accents !== false) m = { ...m, accentSamples: E.imageSamples(m.px, m.alpha, P, m.garmentLab, m.n, { rareFrac: 0.0001, garmentTol: isDark(m.garmentLab) ? 10 : 7, toneBoost: m.toneBoost, salience: m.salience, groupRare: true }).samples };
   if (m.repick) inks = m.mode === "sim" && (m.rerank === true || !!(globalThis.process?.env?.RERANK)) ? rerankPalettes(m, samples) : orderInks(choosePalette(m, samples), m.order);
+  // one colour: the art's tones are stretched over what one ink can print, darkest tone to the
+  // darker end and lightest to the lighter end (bare shirt and solid ink), tone order kept; the separation then solves
+  // for those tones. Printing the art's own lightness left most of the range unused (sunflowers-black 22 ΔE00 off).
+  if (m.method === "mono" && inks && inks.length === 1) { const lab = monoTones(m, inks[0].lab), P1 = m.W * m.H, px = new Uint8ClampedArray(P1 * 3);
+    for (let p = 0; p < P1; p++) px.set(E.lab2rgb([lab[p * 3], lab[p * 3 + 1], lab[p * 3 + 2]]), p * 3); // the solver reads the pixels
+    m = { ...m, lab, px }; }
   // inks chosen elsewhere (Auto's ink search, inks kept from the last run): still say when an accent has no ink and one
   // more screen would print it
   if (!m.repick && (m.mode ?? "sim") === "sim" && m.accents !== false && !m.method && inks && inks.length && m.px) {
@@ -765,13 +837,11 @@ export function toneSteps(img, lab, alpha, W, H) {
     for (const q of [p + 2, p + 2 * W]) { if (alpha[q] < 128) continue; cnt++; if (d(pl, p, q) - d(lab, p, q) > 0.5) hit++; } }
   return cnt ? hit / cnt : 0;
 }
-/** Mix search: find the ink set with the best print rating (stars, the confidence score) from a pool of the 12 shelf
-    inks that best cover the art, leaning to fewer screens. Start from `start` (inks), then repeat the best of: add a
-    pool ink, remove one, or swap one for a pool ink, each scored by a real separation of a small copy (press dE00 and
-    in-tolerance share -> stars). A move that adds a screen must gain more than SEARCH_GAIN stars (past 9 screens,
-    PAST_USUAL_GAIN: plan.screenGain); a move that keeps or cuts screens is taken when it loses no more than that. Locked inks (chosen with Add ink, or locked) always stay.
+/** Mix search: find the ink set with the best objective (press ΔE00 + SCREEN_COST per screen) from a pool of the 12 shelf
+    inks that best cover the art. Start from `start` (inks), then repeat the best of: add a
+    pool ink, remove one, or swap one for a pool ink, each scored by a real separation of a small copy (press ΔE00
+    with screens moving), the move taken when it lowers the objective. Locked inks (chosen with Add ink, or locked) always stay.
     Halftone (sim) art with the ink library only. Returns { inks, stars, evals, log }. */
-export const SEARCH_GAIN = 0.05;
 /* Auto runs many trial separations on small copies of the art. The plans below (searchPlan, autoPlan) are generators:
    they yield batches of independent trials (jobs) and get the results back, so the same logic runs one job after
    another here (searchMix, autoPick) or spread over several workers in the app. A job is { size, args }: separate the
@@ -783,7 +853,9 @@ export function runAutoJob(ctx, job) {
   return { inks: r.inks.length, ub: !!r.ub, robust: r.stats.robustMean, ...(r.stats.fadeTails && { fadeTails: r.stats.fadeTails, view: r.stats.viewMean }), mean: r.stats.mean, cmc: r.stats.cmcWithin2, region: job.region ? regionMiss(t.lab, t.alpha, r.de, t.W * t.H) : 0, ...(job.wantInks && { inkList: r.inks }) };
 }
 /** The copy sizes a plan's jobs use for this art (the app makes these once and gives them to every worker). */
-export function autoSizes(m) { const fc = flatColors(m); return [...new Set([m.autoMax || (fc.flat ? 480 : 240), m.autoMax || 240, ...(m.autoSalience === true ? [m.autoMax || 480] : []), 160])]; }
+// full size too: Auto judges its pick against one screen more at full size (autoPlan), and the app's workers only have
+// the copies listed here
+export function autoSizes(m) { const fc = flatColors(m); return [...new Set([m.autoMax || (fc.flat ? 480 : 240), m.autoMax || 240, ...(m.autoSalience === true ? [m.autoMax || 480] : []), 160, Math.max(m.W, m.H)])]; }
 export { thumb as autoThumb };
 /** @param {Generator<any[], any, any[]>} gen */
 function drive(gen, ctx) { let res = gen.next(); while (!res.done) res = gen.next(res.value.map(j => runAutoJob(ctx, j))); return res.value; }
@@ -821,8 +893,12 @@ export function* searchPlan(m, start, opts = {}) {
   // the start mix is always scored, as before (the budget only limits the moves)
   { const k = setKey(cur), inks = inksOf(cur), [r] = yield [job(inks)]; cache.set(k, value(inks, r)); evals++; if (onStep) onStep(Math.min(1, evals / budget)); }
   let best = cache.get(setKey(cur)); const first = best;
-  // a screen past the usual 9 must gain more (plan.screenGain): Auto stays uncapped, but leans to 9
-  const better = (a, b) => a.screens > b.screens ? a.stars > b.stars + screenGain(b.screens, a.screens, SEARCH_GAIN) : a.screens < b.screens ? a.stars >= b.stars - screenGain(a.screens, b.screens, SEARCH_GAIN) : a.stars > b.stars + 1e-6;
+  // judged on Auto's own objective, press ΔE00 + SCREEN_COST per screen (screens past the usual 9 cost double: they
+  // must pay more). Until 2026-11-17 the search judged in stars, where a screen cost 0.05 stars, worth
+  // 0.05-0.2 ΔE00, and the stars' in-tolerance term could buy one with no gain on press: 9 of 17 photos kept a last
+  // screen their small copy said gained under 0.3 (teamscreen-white 0.11, cockpit-black 0.14)
+  const obj = v => v.press + SCREEN_COST * (v.screens + Math.max(0, v.screens - USUAL_SCREENS));
+  const better = (a, b) => obj(a) < obj(b) - 1e-6;
   for (let round = 0; round < 12 && evals < budget; round++) {
     const moves = [], out = pool.filter(p => !cur.some(c => key(c) === key(p)));
     for (const o of out) moves.push(cur.concat([o]));
@@ -888,6 +964,14 @@ export function* autoPlan(m, onStep) {
   if (pickd.mode === "sim" && m.paletteMode !== "art" && m.autoSearch !== false && m.library && m.library.length) {
     const [st0] = yield [{ size: 160, wantInks: true, args: { mode: "sim", k: pickd.k, smooth: smooth ?? m.smooth, salience, repick: true, costs: false, lite: true, locked: [], inks: [], underbase: ub, opts: { lutG: 13 } } }];
     search = yield* searchPlan({ ...m, mode: "sim", smooth: smooth ?? m.smooth, locked: [], underbase: ub }, st0.inkList, { onStep: f => onStep && onStep(-f) }); inks = search.inks;
+    // the small copy can under-rate a screen (teamscreen-white: its 5th gained 0.11 there, 0.41 at full size), so the
+    // pick and the search's best mix with one screen more are judged at full size on the same objective
+    const up = search.byScreens[search.screens + 1];
+    if (up && Array.isArray(up.inks)) {
+      const full = o => ({ size: Math.max(m.W, m.H), args: { mode: "sim", smooth: smooth ?? m.smooth, salience, underbase: ub, inks: o, locked: [], repick: false, costs: false, dropEmpty: false, accents: false } });
+      const [a, b] = yield [full(inks), full(up.inks)], o = r => r.robust + SCREEN_COST * (r.inks + (r.ub ? 1 : 0));
+      if (o(b) < o(a)) inks = up.inks;
+    }
   }
   const best = { ...pickd, k: Math.max(1, inks ? inks.length : pickd.inks), palette: pickd.mode === "spot" || pickd.mode === "index" ? "art" : m.paletteMode, smooth, smoothTries, salience, salienceTries, inks, search: search && { stars: +search.stars.toFixed(2), startStars: +search.startStars.toFixed(2), screens: search.screens, startScreens: search.startScreens, evals: search.evals, pool: search.pool }, byScreens: search && Object.fromEntries(Object.entries(search.byScreens).map(([n, v]) => [n, { stars: +v.stars.toFixed(2), press: +v.press.toFixed(2), inks: v.inks }])) };
   return { best, rows, flat: fc };

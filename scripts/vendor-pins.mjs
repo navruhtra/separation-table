@@ -9,7 +9,7 @@ export const PACKAGES = [
   { pkg: "pdf-lib", version: "1.17.1", files: { "dist/pdf-lib.min.js": "pdf-lib.min.js" } },
   { pkg: "jszip", version: "3.10.1", files: { "dist/jszip.min.js": "jszip.min.js" }, use: "MIT (dual licensed MIT OR GPL-3.0-or-later; used here under MIT)" },
   { pkg: "onnxruntime-web", version: "1.30.0", files: { "dist/ort.wasm.min.mjs": "ort.wasm.min.mjs", "dist/ort-wasm-simd-threaded.mjs": "ort-wasm-simd-threaded.mjs", "dist/ort-wasm-simd-threaded.wasm": "ort-wasm-simd-threaded.wasm" },
-    licenseUrl: "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/LICENSE" },
+    licenseUrl: "https://cdn.jsdelivr.net/gh/microsoft/onnxruntime@v1.30.0/LICENSE" },
   { pkg: "@techstark/opencv-js", version: "4.10.0-release.1", files: { "dist/opencv.js": "opencv.js" } },
   { pkg: "vtracer-wasm", version: "0.1.0", files: { "vtracer.js": "vtracer.js", "vtracer.wasm": "vtracer.wasm" }, license: "MIT" },
   // bundled by esbuild into src/vendor/quickhull.js with the packages it imports (notices.mjs reads them from the build's metafile)

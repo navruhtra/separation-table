@@ -219,7 +219,8 @@ function prodOf(name, s) {
    Returns one { angle, lpi? } per plate (lpi is a factor on the job's line count), or null if the method has no rule. */
 export const TONE_ANGLES = [45, 75, 15], TONE_BASE = { 1: 75, 2: 15, 3: 0 }, CMYK_ANGLES = { C: 15, M: 75, Y: 0, K: 45 }, YELLOW_LPI = 1.08;
 export function methodAngles(plates, method) {
-  if (method === "cmyk") return plates.map(p => { const k = p.process || p.code; return p.ub ? { angle: 30 } : k in CMYK_ANGLES ? { angle: CMYK_ANGLES[k], ...(k === "Y" && { lpi: YELLOW_LPI }) } : { angle: 45 }; });
+  // a highlight white (CMYK on a dark shirt) shares the base's angle: white on white, so no moiré between them
+  if (method === "cmyk") return plates.map(p => { const k = p.process || p.code; return p.ub || (!k && p.lab && p.lab[0] > 92) ? { angle: 30 } : k in CMYK_ANGLES ? { angle: CMYK_ANGLES[k], ...(k === "Y" && { lpi: YELLOW_LPI }) } : { angle: 45 }; });
   const n = { mono: 1, duo: 2, tri: 3 }[method]; if (!n) return null;
   const inks = plates.filter(p => !p.ub).slice().sort((a, b) => a.lab[0] - b.lab[0]), rank = new Map(inks.map((p, i) => [p, i]));
   return plates.map(p => ({ angle: p.ub ? TONE_BASE[Math.min(3, inks.length)] ?? 0 : TONE_ANGLES[rank.get(p) % TONE_ANGLES.length] }));
@@ -348,19 +349,6 @@ export function printRating({ onPress, aligned, inTol, failedChecks = 0 }) {
 /* Screen count. Auto is not capped, but it must be good enough that a shop can run fewer screens; 9 is the
    usual normal limit". Each screen costs the printer a screen, a setup and a press head. 9 screens, colours and the
    underbase together, is the usual most. Auto stays uncapped, but a screen past 9 must be clearly worth it: in the mix
-   search (pipeline.searchPlan) it must raise the rating by more than PAST_USUAL_GAIN stars, three times the 0.05 a
-   screen needs up to 9 (and a mix with fewer screens past 9 wins while it loses no more than that).
-   Model scores, 2026-11-13, 15 bench images, shelf inks, manual press: the engine's own ink pick at 8 to 12 screens at full
-   size, each mix also rated the way the search rates it (160 px copy). 23 steps of one more screen past 9; on average
-   one gains 0.07 ΔE00 on press and loses 0.04 aligned. "Clearly worth it" = it buys at least the 0.3 ΔE00 on press that
-   Auto's score already charges for a screen (SCREEN_COST). Steps kept by a search gain of more than G (mean on-press
-   gain of the kept steps | of the dropped): G 0.05: 7 kept, 0.24 | 16, 0.00; 0.1: 6, 0.27 | 17, 0.00; 0.15: 4, 0.36 |
-   19, 0.01; 0.2: 3, 0.50 | 20, 0.01. 0.15 is the smallest G whose kept screens average 0.3 or more. The screen-count
-   trials (pipeline.autoPlan) already charge that 0.3 per screen on their test copy and keep it: there the 15 photo on
-   black wins at 10 screens, 0.84 better on press than 9; the search then added an 11th for 0.08 stars, which now stays out. */
-export const USUAL_SCREENS = 9, PAST_USUAL_GAIN = 0.15;
-/** Stars a mix with `more` screens must gain over one with `fewer` (gain: what a screen needs up to the usual limit). */
-export function screenGain(fewer, more, gain) {
-  const past = Math.max(0, more - Math.max(fewer, USUAL_SCREENS));
-  return past ? past * PAST_USUAL_GAIN : gain;
-}
+   search (pipeline.searchPlan) a screen costs SCREEN_COST (0.3 ΔE00 on press) up to 9, and double past 9.
+   (2026-11-13 to 11-17 the search judged in stars, 0.05 a screen and 0.15 past 9.) */
+export const USUAL_SCREENS = 9;

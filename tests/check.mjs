@@ -358,24 +358,23 @@ const { runSeparation, evaluate, labOf } = await import("../src/pipeline.js");
   ok(a3.best.mode === "spot" && a3.rows.every(r => r.mode === "spot") && a4.best.mode === "sim" && a4.rows.every(r => r.mode === "sim") && a5.best.mode === "index" && a5.best.palette === "art",
     `auto keeps the picked method: spot ${a3.best.k} inks, sim ${a4.best.k}, index ${a5.best.k} with art inks (got ${a3.best.mode}/${a4.best.mode}/${a5.best.mode}/${a5.best.palette})`);
 }
-// Screen count: 9 screens is the usual most. Auto is not capped, but in the mix search a screen past 9 must
-// raise the rating by more than PAST_USUAL_GAIN (0.15 stars) instead of 0.05. The search is driven with made-up trial
-// results where every screen adds the same rating: 0.1 stars a screen stops at 9, 0.2 a screen goes past it.
+// Screen count: 9 screens is the usual most. Auto is not capped; the mix search judges on Auto's own
+// objective, press ΔE00 + SCREEN_COST (0.3) per screen, and a screen past 9 costs double (2026-11-17). The search is
+// driven with made-up trial results where every screen improves press by the same g: 0.2 does not pay (it sheds
+// screens), 0.45 pays up to 9 and stops there, 0.7 pays past 9.
 {
-  const { searchPlan, autoPick } = await import("../src/pipeline.js"), { screenGain, USUAL_SCREENS, PAST_USUAL_GAIN } = await import("../src/plan.js"), { genericLibrary } = await import("../src/inks.js");
-  ok(USUAL_SCREENS === 9 && screenGain(5, 6, 0.05) === 0.05 && screenGain(8, 9, 0.05) === 0.05 && screenGain(9, 10, 0.05) === PAST_USUAL_GAIN && screenGain(10, 11, 0.05) === PAST_USUAL_GAIN && screenGain(8, 10, 0.05) === PAST_USUAL_GAIN && Math.abs(screenGain(9, 11, 0.05) - 2 * PAST_USUAL_GAIN) < 1e-12,
-    "screen rule: up to 9 screens a screen needs 0.05 stars, each screen past 9 needs 0.15");
+  const { searchPlan, autoPick, SCREEN_COST } = await import("../src/pipeline.js"), { USUAL_SCREENS } = await import("../src/plan.js"), { genericLibrary } = await import("../src/inks.js");
   const W = 60, H = 60, P = W * H, px = new Uint8ClampedArray(P * 3), alpha = new Uint8Array(P).fill(255), lab = new Float32Array(P * 3);
   for (let p = 0; p < P; p++) { const x = p % W, y = (p / W) | 0, c = [Math.round(255 * x / W), Math.round(255 * y / H), Math.round(255 * (1 - x / W))]; px.set(c, p * 3); lab.set(E.rgb2lab(...c), p * 3); }
   const lib = genericLibrary(), m = { px, alpha, lab, W, H, mode: "sim", garmentLab: E.rgb2lab(255, 255, 255), n: 1.7, smooth: 0.1, underbase: false, library: lib, locked: [], forceWhite: "off" };
   const start = lib.filter(i => i.lab[0] <= 92).slice(0, 8);
-  const drive = (perScreen) => { const gen = searchPlan(m, start, { budget: 5000 }); let r = gen.next();
-    // on-press ΔE falls 2 per 10 screens per 0.1 stars wanted: the rating gains perScreen stars a screen (0.5 stars per ΔE between 2 and 6)
-    while (!r.done) r = gen.next(r.value.map(j => { const d = 6 - perScreen * 2 * (j.args.inks.length - 3); return { robust: d, mean: d, cmc: 1, ub: false }; }));
+  const drive = g => { const gen = searchPlan(m, start, { budget: 5000 }); let r = gen.next();
+    while (!r.done) r = gen.next(r.value.map(j => { const d = 6 - g * (j.args.inks.length - 3); return { robust: d, mean: d, cmc: 1, ub: false }; }));
     return r.value; };
-  const slow = drive(0.1), fast = drive(0.2);
-  ok(slow.screens === USUAL_SCREENS && fast.screens > USUAL_SCREENS, `screen rule: a search gaining 0.1 stars a screen stops at 9 screens (${slow.screens}); gaining 0.2 a screen it goes past 9 (${fast.screens})`);
-  ok(slow.byScreens[8] && slow.byScreens[9] && slow.byScreens[10] && slow.byScreens[9].stars - slow.byScreens[8].stars > 0.05 && slow.byScreens[10].stars - slow.byScreens[9].stars <= PAST_USUAL_GAIN,
+  const low = drive(0.2), mid = drive(0.45), high = drive(0.7);
+  ok(SCREEN_COST === 0.3 && USUAL_SCREENS === 9 && low.screens < start.length && mid.screens === USUAL_SCREENS && high.screens > USUAL_SCREENS,
+    `screen rule: a screen gaining 0.2 ΔE is not kept (${start.length} -> ${low.screens}); 0.45 stops at 9 (${mid.screens}); 0.7 goes past 9 (${high.screens})`);
+  ok([8, 9, 10].every(n => mid.byScreens[n] && mid.byScreens[n].inks.length === n && Number.isFinite(mid.byScreens[n].press) && Number.isFinite(mid.byScreens[n].stars)),
     "screen rule: the search keeps its best mix at each screen count it rated (what fewer screens would rate, for Auto's note)");
   // Auto's pick carries those ratings to the app: the chosen count's entry is the search's own rating, every entry has its inks
   const a = autoPick({ px, alpha, lab, W, H, garmentLab: m.garmentLab, n: 1.7, smooth: 0.1, rareFrac: 0.0005, underbase: false, ubStrength: 1, library: lib, forceWhite: "off", screening: "am", overprint: "same", rho: 0.6, rhos: [0, 0.5, 1], stackLimit: 2.4, paletteMode: "library" }), by = a.best.byScreens;
