@@ -1,14 +1,14 @@
 // The Separation Table benchmark: run the engine on its two yardsticks (vector truth, bench) and compare with the stored baseline, so an
-// engine change is judged against numbers already measured instead of re-running the old engine. See BENCHMARK.md.
+// engine change is judged against numbers already measured instead of re-running the old engine. See docs/BENCHMARK.md.
 //
 //   node benchmark/run.mjs                       this checkout's engine, all yardsticks, compared with baseline.json
 //   node benchmark/run.mjs --only truth          one yardstick (truth, bench)
 //   node benchmark/run.mjs --commit <sha>        another version's engine (extracted from git), e.g. an old one
 //   node benchmark/run.mjs --update --label "..." --note "..."
-//                                                make this run the new baseline, add it to history.json, rewrite BENCHMARK.md
+//                                                make this run the new baseline, add it to history.json, rewrite docs/BENCHMARK.md
 //   node benchmark/run.mjs --history --commit <sha> --label "..."
 //                                                add a past version to history.json only (baseline unchanged)
-//   node benchmark/run.mjs --doc --only none       rewrite BENCHMARK.md's numbers from baseline.json and history.json
+//   node benchmark/run.mjs --doc --only none       rewrite docs/BENCHMARK.md's numbers from baseline.json and history.json
 //   node benchmark/run.mjs --history --record .cache/benchmark/results/<label>.json
 //                                                file a run saved earlier (runs can go in parallel, then be filed in order)
 // Exit code: 0 within tolerance, 2 a yardstick got worse beyond tolerance, 1 an error.
@@ -91,20 +91,20 @@ console.log("| measure | baseline | now | change | verdict |\n|---|---|---|---|-
 if (fails.length) console.log(`\nWorse beyond tolerance: ${fails.join(", ")}`); if (warns.length) console.log(`Slower: ${warns.join(", ")} (only meaningful on an idle machine)`);
 
 
-/* Baseline and history. history.json keeps one summary row per recorded version, oldest first; BENCHMARK.md shows them. */
+/* Baseline and history. history.json keeps one summary row per recorded version, oldest first; docs/BENCHMARK.md shows them. */
 const short = r => ({ label: r.label, note: r.note, commit: r.commit.slice(0, 12), date: r.date, truth: r.truth && { closeEdges: r.truth.close.edges, armEdges: r.truth.arm.edges, armSolid: r.truth.arm.solid, armGlow: r.truth.arm.glow, offset: r.truth.offset, specks: r.truth.specks }, bench: r.bench?.summary });
 if (has("--update") || has("--history")) {
   const hist = existsSync(HIST) ? JSON.parse(readFileSync(HIST, "utf8")) : []; hist.push(short(res)); writeFileSync(HIST, JSON.stringify(hist, null, 1) + "\n");
   if (has("--update")) { if (!(res.truth && res.bench)) throw new Error("--update needs both yardsticks"); writeFileSync(BASE, JSON.stringify(res, null, 1) + "\n"); }
-  if (has("--update") || baseline) writeDoc(has("--update") ? res : baseline, hist); console.error(`recorded ${has("--update") ? "baseline and " : ""}history; BENCHMARK.md rewritten`);
+  if (has("--update") || baseline) writeDoc(has("--update") ? res : baseline, hist); console.error(`recorded ${has("--update") ? "baseline and " : ""}history; docs/BENCHMARK.md rewritten`);
 }
-// --doc: rewrite the generated part of BENCHMARK.md from the stored baseline and history only (no run is recorded)
+// --doc: rewrite the generated part of docs/BENCHMARK.md from the stored baseline and history only (no run is recorded)
 if (has("--doc") && baseline) writeDoc(baseline, existsSync(HIST) ? JSON.parse(readFileSync(HIST, "utf8")) : []);
 process.exit(fails.length ? 2 : 0);
 
-/** Rewrite the generated part of BENCHMARK.md (between the markers) from the baseline and the history. */
+/** Rewrite the generated part of docs/BENCHMARK.md (between the markers) from the baseline and the history. */
 function writeDoc(b, hist) {
-  const doc = join(BENCH, "BENCHMARK.md"), txt = readFileSync(doc, "utf8"), A = "<!-- benchmark:generated:start -->", Z = "<!-- benchmark:generated:end -->";
+  const doc = join(BENCH, "docs/BENCHMARK.md"), txt = readFileSync(doc, "utf8"), A = "<!-- benchmark:generated:start -->", Z = "<!-- benchmark:generated:end -->";
   const f = (v, d = 3) => v == null ? "—" : typeof v === "number" ? v.toFixed(d) : v;
   const L = [A, "", `**Baseline:** ${b.label} · commit \`${b.commit.slice(0, 12)}\` · ${b.date} · ${b.cpu}, Node ${b.node}${b.note ? ` · ${b.note}` : ""}`, ""];
   const t = b.truth, c = b.bench.summary;
