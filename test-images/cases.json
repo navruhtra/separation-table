@@ -337,5 +337,149 @@
     570
    ]
   ]
+ },
+ {
+  "img": "19-bedroom-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 7,
+  "note": "oil painting: brush texture, strong colors",
+  "src": "museum"
+ },
+ {
+  "img": "20-self-portrait-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 7,
+  "note": "oil painting: skin in short strokes",
+  "src": "museum"
+ },
+ {
+  "img": "21-herring-net-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 6,
+  "note": "oil painting: dark, muted sea",
+  "src": "museum"
+ },
+ {
+  "img": "22-after-the-hurricane-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 6,
+  "note": "watercolor: soft washes on light paper",
+  "src": "museum"
+ },
+ {
+  "img": "23-gulf-stream-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 6,
+  "note": "watercolor: blues and reds",
+  "src": "museum"
+ },
+ {
+  "img": "24-shrike-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 5,
+  "note": "bird print on white paper, fine line",
+  "src": "museum"
+ },
+ {
+  "img": "25-harlequin-duck-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 5,
+  "note": "bird print, soft color",
+  "src": "museum"
+ },
+ {
+  "img": "26-vaquero-sand",
+  "mode": "sim",
+  "garment": [
+   201,
+   180,
+   143
+  ],
+  "k": 6,
+  "note": "earth tones, a figure on a plain ground",
+  "src": "museum"
+ },
+ {
+  "img": "27-summer-morning-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 6,
+  "note": "hand-colored lithograph, landscape",
+  "src": "museum"
+ },
+ {
+  "img": "28-snowy-morning-navy",
+  "mode": "sim",
+  "garment": [
+   28,
+   42,
+   74
+  ],
+  "k": 6,
+  "note": "lithograph: snow, near-white tones on a dark shirt",
+  "src": "museum"
+ },
+ {
+  "img": "29-childs-bath-black",
+  "mode": "sim",
+  "garment": [
+   17,
+   17,
+   17
+  ],
+  "k": 7,
+  "note": "patterns, skin and pastel colors",
+  "src": "museum"
+ },
+ {
+  "img": "30-coverlet-white",
+  "mode": "sim",
+  "garment": [
+   255,
+   255,
+   255
+  ],
+  "k": 3,
+  "note": "woven two-color pattern",
+  "src": "museum"
  }
 ]
