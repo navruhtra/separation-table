@@ -8,7 +8,7 @@
 Free, open-source color separation for screen printing.
 Runs in your browser.
 
-**[Open Separation Table](https://americandreamnetwork.us/tools/textile-services/screen-printing/separation-table)**
+**[Open Separation Table](https://americandreamnetwork.us/tools/printing/screen-printing/separation-table)**
 · MIT License · © American Dream Network
 
 Version 0.1.0 · [Changelog](CHANGELOG.md) ·
